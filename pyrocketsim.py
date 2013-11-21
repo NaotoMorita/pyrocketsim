@@ -1,17 +1,16 @@
 ﻿import numpy,scipy
 import matplotlib.figure, matplotlib.pyplot
 import math, copy
-from decimal import Decimal
 
 class Quaternion():
     def __init__(self, q0 = 1, q1 = 0, q2 = 0, q3 = 0):
         if "self.q0" in locals():
             pass
         else:
-            self.q0 = Decimal(q0)
-            self.q1 = Decimal(q1)
-            self.q2 = Decimal(q2)
-            self.q3 = Decimal(q3)
+            self.q0 = float(q0)
+            self.q1 = float(q1)
+            self.q2 = float(q2)
+            self.q3 = float(q3)
 
     def __repr__(self):
         return "%f,%f, %f,%f" % (self.q0, self.q1, self.q2, self.q3)
@@ -21,21 +20,21 @@ class Quaternion():
         [self.q1,self.q0,-self.q3,self.q2],
         [self.q2,self.q3,self.q0,-self.q1],
         [self.q3,-self.q2,self.q1,self.q0]]
-        q_mat = numpy.array(q_buff,dtype = numpy.dtype(Decimal))
+        q_mat = numpy.array(q_buff)
 
         p_buff =[[other.q0],
         [other.q1],
         [other.q2],
         [other.q3]]
 
-        p_mat = numpy.array(p_buff,dtype = numpy.dtype(Decimal))
+        p_mat = numpy.array(p_buff)
         product_buff = numpy.dot(q_mat,p_mat)
 
         buff = product_buff.tolist()
-        quat0 = Decimal(product_buff[0])
-        quat1 = Decimal(product_buff[1])
-        quat2 = Decimal(product_buff[2])
-        quat3 = Decimal(product_buff[3])
+        quat0 = float(product_buff[0])
+        quat1 = float(product_buff[1])
+        quat2 = float(product_buff[2])
+        quat3 = float(product_buff[3])
 
         return Quaternion(quat0, quat1, quat2, quat3)
 
@@ -64,7 +63,7 @@ class Quaternion():
 
     def dq_dt(self,ox, oy, oz):
         dq_dt = Quaternion()
-        omega = Quaternion(q0 = 0.0, q1 = ox, q2 = oy, q3 = oz)
+        omega = Quaternion(q0 = 0, q1 = ox, q2 = oy, q3 = oz)
         dq_dt = self.quat_product(omega)
 
         dq_dt.q0 /= 2.0
@@ -80,16 +79,16 @@ class Quaternion():
         return [phi,theta,psi]
 
     def quat2dcm(self):
-        dcm = numpy.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]],dtype = numpy.dtype(Decimal))
-        dcm[0,0] = Decimal(self.q0 ** 2 + self.q1 ** 2 - self.q2 ** 2 - self.q3 ** 2)
-        dcm[0,1] = Decimal(2 * (self.q1 * self.q2 - self.q0 * self.q3))
-        dcm[0,2] = Decimal(2 * (self.q0 * self.q2 - self.q1 * self.q3))
-        dcm[1,0] = Decimal(2 * (self.q1 * self.q2 + self.q0 * self.q3))
-        dcm[1,1] = Decimal(self.q0 ** 2 - self.q1 ** 2 + self.q2 ** 2 - self.q3 ** 2)
-        dcm[1,2] = Decimal(2 * (self.q2 * self.q3 - self.q0 * self.q1))
-        dcm[2,0] = Decimal(2 * (self.q1 * self.q3 - self.q0 * self.q2))
-        dcm[2,1] = Decimal(2 * (self.q0 * self.q1 + self.q2 * self.q3))
-        dcm[2,2] = Decimal(self.q0 ** 2 - self.q1 ** 2 - self.q2 ** 2 + self.q3 ** 2)
+        dcm = numpy.array([[0.0,1.0,0.0],[0.0,1.0,0.0],[0.0,0.0,0.0]],dtype = "f")
+        dcm[0,0] = float(self.q0 ** 2 + self.q1 ** 2 - self.q2 ** 2 - self.q3 ** 2)
+        dcm[0,1] = 2 * (self.q1 * self.q2 - self.q0 * self.q3)
+        dcm[0,2] = 2 * (self.q0 * self.q2 - self.q1 * self.q3)
+        dcm[1,0] = 2 * (self.q1 * self.q2 + self.q0 * self.q3)
+        dcm[1,1] = float(self.q0 ** 2 - self.q1 ** 2 + self.q2 ** 2 - self.q3 ** 2)
+        dcm[1,2] = 2 * (self.q2 * self.q3 - self.q0 * self.q1)
+        dcm[2,0] = 2 * (self.q1 * self.q3 - self.q0 * self.q2)
+        dcm[2,1] = 2 * (self.q0 * self.q1 + self.q2 * self.q3)
+        dcm[2,2] = float(self.q0 ** 2 - self.q1 ** 2 - self.q2 ** 2 + self.q3 ** 2)
         return dcm
 
     def euler2quat(self,phi,theta,psi):
@@ -142,32 +141,32 @@ class Rocket():
         else:
 
             self.quat = Quaternion()
-            self.quat.rot2quat(60*math.pi/180,0,1,0)
+            self.quat.rot2quat(80*math.pi/180,0,1,0)
             self.euler = self.quat.quat2euler()
 
 
-            self.vel_b = numpy.array([[20],[0],[0]], dtype=numpy.dtype(Decimal))
-            self.angvel_b = numpy.array([[0.0],[0.0],[0.0]], dtype=numpy.dtype(Decimal))
+            self.vel_b = numpy.array([[20],[0],[0]], dtype = 'f')
+            self.angvel_b = numpy.array([[0.0],[0.0],[0.0]], dtype = 'f')
 
             self.dcm_b2i = self.quat.quat2dcm()
             self.dcm_i2b = (self.quat.inverse()).quat2dcm()
 
             self.vel_i = numpy.dot(self.dcm_b2i , self.vel_b)
             self.angvel_i = numpy.dot(self.dcm_b2i , self.angvel_b)
-            self.r_i = numpy.array([[0],[0],[0]],dtype=numpy.dtype(Decimal))
+            self.r_i = numpy.array([[0],[0],[0]],dtype = 'f')
 
-            self.dt = Decimal(0.05)
-            self.t = Decimal(0)
+            self.dt = 0.0001
+            self.t = float(0)
 
-            self.wind = numpy.array([[0],[0],[0]], dtype=numpy.dtype(Decimal))
+            self.wind = numpy.array([[0],[0],[0]], dtype = 'f')
 
-            self.m = Decimal(0.0714)
-            self.Ix = Decimal(0.0000198)
-            self.Iy = Decimal(0.001293)
-            self.Iz = Decimal(0.001293)
+            self.m = 0.0714
+            self.Ix = 0.0000198
+            self.Iy = 0.001293
+            self.Iz = 0.001293
 
-            self.launcher_length = Decimal(2.0)
-            self.launcher_height = numpy.dot(self.dcm_b2i,numpy.array([[self.launcher_length],[0],[0]],dtype=numpy.dtype(Decimal)))[2,0]
+            self.launcher_length = 2.0
+            self.launcher_height = numpy.dot(self.dcm_b2i,numpy.array([[self.launcher_length],[0],[0]],dtype = 'f'))[2,0]
 
             self.i = 0
 
@@ -178,21 +177,21 @@ class Rocket():
             self.quat.quat2euler()
             self.log_euler = self.quat.quat2euler()
 
-            self.log_alpha = Decimal(0.0)
+            self.log_alpha = 0.0
             self.log_angvel_b = copy.deepcopy(self.angvel_b)
-            self.log_M_i = numpy.array([[0],[0],[0]],dtype=numpy.dtype(Decimal))
+            self.log_M_i = numpy.array([[0],[0],[0]],dtype = "f")
 
 
 
             #-----鬮｢・ｭ繝ｻ・ｴ髣厄ｽｴ隰撰ｽｺ隲ｱ謌頑剰涕蟶吮味髫ｴ竏壹・
-            self.CLab = Decimal(2)
-            self.lp = Decimal(0.023)
-            self.sf = Decimal( (0.023) ** 2 / 4 * math.pi)
-            self.ss = Decimal((2.5*42.5) * 10 ** (-4))
-            self.CD = Decimal(0.8)
-            self.CDab = Decimal(0.008)
-            self.parashoot_time = Decimal(400)
-            self.sp = Decimal((0.25) ** 2 * math.pi / 4)
+            self.CLab = float(2)
+            self.lp = 0.06
+            self.sf = (0.023) ** 2 / 4 * math.pi
+            self.ss = (2.5*42.5) * 10 ** (-4)
+            self.CD = 0.8
+            self.CDab = 0.008
+            self.parashoot_time = 40
+            self.sp = (0.25) ** 2 * math.pi / 4
 
     def __repr__(self):
         return "%f, %f, %f\n%f, %f, %f\n%f, %f, %f\n" % (self.dcm[0,0], self.dcm[0,1], self.dcm[0,2], self.dcm[1,0], self.dcm[1,1], self.dcm[1,2], self.dcm[2,0], self.dcm[2,1], self.dcm[2,2])
@@ -232,12 +231,12 @@ class Rocket():
             self.alpha = -numpy.arcsin(self.vel_b[2,0] / numpy.sqrt(self.vel_b[0,0] ** 2 + self.vel_b[1,0] ** 2 + self.vel_b[2,0] ** 2))
             self.beta = -numpy.arctan(self.vel_b[1,0] / self.vel_b[0,0]) * self.vel_b[0,0] / abs(self.vel_b[0,0])
         else:
-            self.alpha = Decimal(0)
-            self.beta = Decimal(0)
+            self.alpha = float(0)
+            self.beta = float(0)
 
         if numpy.sqrt(self.vel_b[0,0] ** 2 + self.vel_b[1,0] ** 2 + self.vel_b[2,0] ** 2) != 0:
             xd = self.vel_b / numpy.sqrt(self.vel_b[0,0] ** 2 + self.vel_b[1,0] ** 2 + self.vel_b[2,0] ** 2)
-            yd = numpy.cross((xd+numpy.array([[0],[0],[10]],dtype=numpy.dtype(Decimal))).T,xd.T).T
+            yd = numpy.cross((xd+numpy.array([[0],[0],[10]],dtype = "f")).T,xd.T).T
             yd = yd / numpy.sqrt(yd[0,0] ** 2 + yd[1,0] ** 2 + yd[2,0] ** 2)
             zd = numpy.cross(xd.T,yd.T).T
             self.dcm_v2b = numpy.hstack([xd,yd,zd])
@@ -253,25 +252,28 @@ class Rocket():
 
 
 
+
+
+
         #-----闔会ｽ･闕ｳ蛹ｺ諱戊怏蟷・ｽｨ閧ｲ・ｮ繝ｻ
         rho = 1.184
         if self.vel_v[0,0] == 0:
-            self.lift = numpy.array([[0],[0],[0]],dtype=numpy.dtype(Decimal))
+            self.lift = numpy.array([[0],[0],[0]],dtype = 'f')
 
         else:
-            self.lift = numpy.array([[0],[0],[0]],dtype=numpy.dtype(Decimal))
+            self.lift = numpy.array([[0],[0],[0]],dtype = 'f')
             self.lift[1,0] = 1 / 2 * rho * self.vel_v[0,0] ** 2 * self.ss * self.CLab * self.beta
             self.lift[2,0] = 1 / 2 * rho * self.vel_v[0,0] ** 2 * self.ss * self.CLab * self.alpha
 
         #-----闔会ｽ･闕ｳ蛹ｺ闥ｲ陷牙ｹ・ｽｨ閧ｲ・ｮ繝ｻ
         if self.vel_v[0,0] == 0:
-            self.drag = numpy.array([[0],[0],[0]],dtype=numpy.dtype(Decimal))
+            self.drag = numpy.array([[0],[0],[0]],dtype = 'f')
 
         elif self.parashoot_time <= self.t:
-            self.drag = numpy.array([1 / 2 * rho * self.vel_v[0,0]^2 * 1.3 * self.sp],[0],[0],dtype=numpy.dtype(Decimal))
+            self.drag = numpy.array([1 / 2 * rho * self.vel_v[0,0]^2 * 1.3 * self.sp],[0],[0],dtype = 'f')
 
         else:
-            self.drag = numpy.array([[0],[0],[0]],dtype=numpy.dtype(Decimal))
+            self.drag = numpy.array([[0],[0],[0]],dtype = 'f')
             self.drag[0,0] = 1 / 2 * rho * self.vel_v[0,0] ** 2 * self.sf * self.CD
             if -self.r_i[2,0] >= -self.launcher_height:
                 self.drag[0,0] += 1 / 2 * rho * self.vel_v[0,0] ** 2 * self.ss * self.CDab * (abs(self.alpha)+abs(self.beta))
@@ -281,10 +283,13 @@ class Rocket():
         self.F_v[1,0] = -self.lift[1,0]
         self.F_v[2,0] = -self.lift[2,0]
 
+
         self.F_b = numpy.dot(self.dcm_v2b,self.F_v)
-        self.thrust = Decimal(0)
+
+        self.thrust = float(0)
         self.F_b[0,0] += self.thrust
         self.M_b = numpy.array([[0],[self.F_b[2,0] * self.lp * (-1)],[self.F_b[1,0] * self.lp * (1)]])
+
 
 
     def integral_at_i(self):
@@ -292,8 +297,6 @@ class Rocket():
                     #dcm隴厄ｽｴ隴・ｽｰ
         self.dcm_b2i = self.quat.quat2dcm()
         self.dcm_i2b =(self.quat.inverse()).quat2dcm()
-
-
         self.F_i = numpy.dot(self.dcm_b2i,self.F_b)
         self.M_i = numpy.dot(self.dcm_b2i,self.M_b)
         self.F_i[2,0] += 9.8 * self.m
@@ -308,7 +311,6 @@ class Rocket():
                 self.F_i[2,0] = 0
 
         self.acc_i = self.F_i / self.m
-
         self.gyro_i = self.M_i
         self.gyro_i[0,0] /= self.Ix
         self.gyro_i[1,0] /= self.Iy
@@ -321,10 +323,8 @@ class Rocket():
             self.angvel_i += self.gyro_i * self.dt
             self.sub_vel_i = copy.deepcopy(self.vel_i)
             self.sub_acc_i = copy.deepcopy(self.acc_i)
-
-
-
-
+            self.sub_gyro_i = copy.deepcopy(self.gyro_i)
+            self.sub_angvel_i = copy.deepcopy(self.angvel_i)
 
 
 
@@ -334,9 +334,10 @@ class Rocket():
             self.angvel_i += self.gyro_i * self.dt
             self.sub_vel_i = copy.deepcopy(self.vel_i)
             self.sub_acc_i = copy.deepcopy(self.acc_i)
+            self.sub_gyro_i = copy.deepcopy(self.gyro_i)
+            self.sub_angvel_i = copy.deepcopy(self.angvel_i)
 
         #if -self.r_i[2,0] >= -self.launcher_height:
-        #------隶匁ｻ会ｽｽ轣假ｽｺ・ｧ隶灘衷・ｳ・ｻ邵ｺ・ｸ陞溽判驪､
         self.angvel_b = numpy.dot(self.dcm_i2b,self.angvel_i)
         self.vel_b = numpy.dot(self.dcm_i2b,(self.vel_i+self.wind))
         if self.i == 0:
@@ -393,6 +394,7 @@ def main():
 
     rocket = Rocket()
     rocket.exesimulate()
+    print(rocket.log_alpha * 180 / math.pi)
     matplotlib.pyplot.plot(rocket.log_r_i[0,:],-rocket.log_r_i[2,:])
     matplotlib.pyplot.axis("equal")
     matplotlib.pyplot.show()
