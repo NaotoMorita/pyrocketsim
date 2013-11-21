@@ -21,14 +21,14 @@ class Quaternion():
         [self.q1,self.q0,-self.q3,self.q2],
         [self.q2,self.q3,self.q0,-self.q1],
         [self.q3,-self.q2,self.q1,self.q0]]
-        q_mat = numpy.array(q_buff)
+        q_mat = numpy.array(q_buff,dtype = numpy.dtype(Decimal))
 
         p_buff =[[other.q0],
         [other.q1],
         [other.q2],
         [other.q3]]
 
-        p_mat = numpy.array(p_buff)
+        p_mat = numpy.array(p_buff,dtype = numpy.dtype(Decimal))
         product_buff = numpy.dot(q_mat,p_mat)
 
         buff = product_buff.tolist()
@@ -80,16 +80,16 @@ class Quaternion():
         return [phi,theta,psi]
 
     def quat2dcm(self):
-        dcm = numpy.array([[0.0,1.0,0.0],[0.0,1.0,0.0],[0.0,0.0,0.0]],dtype = numpy.dtype(Decimal))
-        dcm[0,0] = (self.q0 ** 2 + self.q1 ** 2 - self.q2 ** 2 - self.q3 ** 2)
-        dcm[0,1] = 2 * (self.q1 * self.q2 - self.q0 * self.q3)
-        dcm[0,2] = 2 * (self.q0 * self.q2 - self.q1 * self.q3)
-        dcm[1,0] = 2 * (self.q1 * self.q2 + self.q0 * self.q3)
-        dcm[1,1] = (self.q0 ** 2 - self.q1 ** 2 + self.q2 ** 2 - self.q3 ** 2)
-        dcm[1,2] = 2 * (self.q2 * self.q3 - self.q0 * self.q1)
-        dcm[2,0] = 2 * (self.q1 * self.q3 - self.q0 * self.q2)
-        dcm[2,1] = 2 * (self.q0 * self.q1 + self.q2 * self.q3)
-        dcm[2,2] = (self.q0 ** 2 - self.q1 ** 2 - self.q2 ** 2 + self.q3 ** 2)
+        dcm = numpy.array([[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]],dtype = numpy.dtype(Decimal))
+        dcm[0,0] = Decimal(self.q0 ** 2 + self.q1 ** 2 - self.q2 ** 2 - self.q3 ** 2)
+        dcm[0,1] = Decimal(2 * (self.q1 * self.q2 - self.q0 * self.q3))
+        dcm[0,2] = Decimal(2 * (self.q0 * self.q2 - self.q1 * self.q3))
+        dcm[1,0] = Decimal(2 * (self.q1 * self.q2 + self.q0 * self.q3))
+        dcm[1,1] = Decimal(self.q0 ** 2 - self.q1 ** 2 + self.q2 ** 2 - self.q3 ** 2)
+        dcm[1,2] = Decimal(2 * (self.q2 * self.q3 - self.q0 * self.q1))
+        dcm[2,0] = Decimal(2 * (self.q1 * self.q3 - self.q0 * self.q2))
+        dcm[2,1] = Decimal(2 * (self.q0 * self.q1 + self.q2 * self.q3))
+        dcm[2,2] = Decimal(self.q0 ** 2 - self.q1 ** 2 - self.q2 ** 2 + self.q3 ** 2)
         return dcm
 
     def euler2quat(self,phi,theta,psi):
@@ -162,11 +162,11 @@ class Rocket():
             self.wind = numpy.array([[0],[0],[0]], dtype=numpy.dtype(Decimal))
 
             self.m = Decimal(0.0714)
-            self.Ix = 0.0000198
-            self.Iy = 0.001293
-            self.Iz = 0.001293
+            self.Ix = Decimal(0.0000198)
+            self.Iy = Decimal(0.001293)
+            self.Iz = Decimal(0.001293)
 
-            self.launcher_length = 2.0
+            self.launcher_length = Decimal(2.0)
             self.launcher_height = numpy.dot(self.dcm_b2i,numpy.array([[self.launcher_length],[0],[0]],dtype=numpy.dtype(Decimal)))[2,0]
 
             self.i = 0
@@ -178,7 +178,7 @@ class Rocket():
             self.quat.quat2euler()
             self.log_euler = self.quat.quat2euler()
 
-            self.log_alpha = 0.0
+            self.log_alpha = Decimal(0.0)
             self.log_angvel_b = copy.deepcopy(self.angvel_b)
             self.log_M_i = numpy.array([[0],[0],[0]],dtype=numpy.dtype(Decimal))
 
@@ -186,13 +186,13 @@ class Rocket():
 
             #-----鬮｢・ｭ繝ｻ・ｴ髣厄ｽｴ隰撰ｽｺ隲ｱ謌頑剰涕蟶吮味髫ｴ竏壹・
             self.CLab = Decimal(2)
-            self.lp = 0.023
-            self.sf = (0.023) ** 2 / 4 * math.pi
-            self.ss = (2.5*42.5) * 10 ** (-4)
-            self.CD = 0.8
-            self.CDab = 0.008
-            self.parashoot_time = 400
-            self.sp = (0.25) ** 2 * math.pi / 4
+            self.lp = Decimal(0.023)
+            self.sf = Decimal( (0.023) ** 2 / 4 * math.pi)
+            self.ss = Decimal((2.5*42.5) * 10 ** (-4))
+            self.CD = Decimal(0.8)
+            self.CDab = Decimal(0.008)
+            self.parashoot_time = Decimal(400)
+            self.sp = Decimal((0.25) ** 2 * math.pi / 4)
 
     def __repr__(self):
         return "%f, %f, %f\n%f, %f, %f\n%f, %f, %f\n" % (self.dcm[0,0], self.dcm[0,1], self.dcm[0,2], self.dcm[1,0], self.dcm[1,1], self.dcm[1,2], self.dcm[2,0], self.dcm[2,1], self.dcm[2,2])
