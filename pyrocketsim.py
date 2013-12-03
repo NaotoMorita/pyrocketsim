@@ -12,8 +12,6 @@ class Quaternion():
             self.q2 = float(q2)
             self.q3 = float(q3)
 
-    def __repr__(self):
-        return "%f,%f, %f,%f" % (self.q0, self.q1, self.q2, self.q3)
 
     def quat_product(self, other):
         q_buff = [[self.q0,-self.q1,-self.q2,-self.q3],
@@ -79,7 +77,7 @@ class Quaternion():
         return [phi,theta,psi]
 
     def quat2dcm(self):
-        dcm = numpy.array([[0.0,1.0,0.0],[0.0,1.0,0.0],[0.0,0.0,0.0]],dtype = "f")
+        dcm = numpy.array([[0.0,1.0,0.0],[0.0,1.0,0.0],[0.0,0.0,0.0]],dtype = numpy.float_)
         dcm[0,0] = float(self.q0 ** 2 + self.q1 ** 2 - self.q2 ** 2 - self.q3 ** 2)
         dcm[0,1] = 2 * (self.q1 * self.q2 - self.q0 * self.q3)
         dcm[0,2] = 2 * (self.q0 * self.q2 - self.q1 * self.q3)
@@ -145,28 +143,28 @@ class Rocket():
             self.euler = self.quat.quat2euler()
 
 
-            self.vel_b = numpy.array([[20],[0],[0]], dtype = 'f')
-            self.angvel_b = numpy.array([[0.0],[0.0],[0.0]], dtype = 'f')
+            self.vel_b = numpy.array([[40],[0],[0]], dtype = numpy.float_)
+            self.angvel_b = numpy.array([[0.0],[0.0],[0.0]], dtype = numpy.float_)
 
             self.dcm_b2i = self.quat.quat2dcm()
             self.dcm_i2b = (self.quat.inverse()).quat2dcm()
 
             self.vel_i = numpy.dot(self.dcm_b2i , self.vel_b)
             self.angvel_i = numpy.dot(self.dcm_b2i , self.angvel_b)
-            self.r_i = numpy.array([[0],[0],[0]],dtype = 'f')
+            self.r_i = numpy.array([[0],[0],[0]],dtype = numpy.float_)
 
-            self.dt = 0.0001
+            self.dt = 0.001
             self.t = float(0)
 
-            self.wind = numpy.array([[0],[0],[0]], dtype = 'f')
+            self.wind = numpy.array([[0],[0],[0]], dtype = numpy.float_)
 
             self.m = 0.0714
-            self.Ix = 0.0000198
-            self.Iy = 0.001293
-            self.Iz = 0.001293
+            self.Ix = 0.000198
+            self.Iy = 0.01293
+            self.Iz = 0.01293
 
-            self.launcher_length = 2.0
-            self.launcher_height = numpy.dot(self.dcm_b2i,numpy.array([[self.launcher_length],[0],[0]],dtype = 'f'))[2,0]
+            self.launcher_length = 2
+            self.launcher_height = numpy.dot(self.dcm_b2i,numpy.array([[self.launcher_length],[0],[0]],dtype = numpy.float_))[2,0]
 
             self.i = 0
 
@@ -179,16 +177,16 @@ class Rocket():
 
             self.log_alpha = 0.0
             self.log_angvel_b = copy.deepcopy(self.angvel_b)
-            self.log_M_i = numpy.array([[0],[0],[0]],dtype = "f")
+            self.log_M_i = numpy.array([[0],[0],[0]],dtype = numpy.float_)
 
 
 
             #-----鬮｢・ｭ繝ｻ・ｴ髣厄ｽｴ隰撰ｽｺ隲ｱ謌頑剰涕蟶吮味髫ｴ竏壹・
-            self.CLab = float(2)
-            self.lp = 0.06
+            self.CLab = float(0.1)
+            self.lp = 0.01
             self.sf = (0.023) ** 2 / 4 * math.pi
             self.ss = (2.5*42.5) * 10 ** (-4)
-            self.CD = 0.8
+            self.CD = 0.3
             self.CDab = 0.008
             self.parashoot_time = 40
             self.sp = (0.25) ** 2 * math.pi / 4
@@ -236,7 +234,7 @@ class Rocket():
 
         if numpy.sqrt(self.vel_b[0,0] ** 2 + self.vel_b[1,0] ** 2 + self.vel_b[2,0] ** 2) != 0:
             xd = self.vel_b / numpy.sqrt(self.vel_b[0,0] ** 2 + self.vel_b[1,0] ** 2 + self.vel_b[2,0] ** 2)
-            yd = numpy.cross((xd+numpy.array([[0],[0],[10]],dtype = "f")).T,xd.T).T
+            yd = numpy.cross((xd+numpy.array([[0],[0],[10.0]])).T,xd.T).T
             yd = yd / numpy.sqrt(yd[0,0] ** 2 + yd[1,0] ** 2 + yd[2,0] ** 2)
             zd = numpy.cross(xd.T,yd.T).T
             self.dcm_v2b = numpy.hstack([xd,yd,zd])
@@ -258,22 +256,22 @@ class Rocket():
         #-----闔会ｽ･闕ｳ蛹ｺ諱戊怏蟷・ｽｨ閧ｲ・ｮ繝ｻ
         rho = 1.184
         if self.vel_v[0,0] == 0:
-            self.lift = numpy.array([[0],[0],[0]],dtype = 'f')
+            self.lift = numpy.array([[0],[0],[0]],dtype = numpy.float_)
 
         else:
-            self.lift = numpy.array([[0],[0],[0]],dtype = 'f')
+            self.lift = numpy.array([[0],[0],[0]],dtype = numpy.float_)
             self.lift[1,0] = 1 / 2 * rho * self.vel_v[0,0] ** 2 * self.ss * self.CLab * self.beta
             self.lift[2,0] = 1 / 2 * rho * self.vel_v[0,0] ** 2 * self.ss * self.CLab * self.alpha
 
         #-----闔会ｽ･闕ｳ蛹ｺ闥ｲ陷牙ｹ・ｽｨ閧ｲ・ｮ繝ｻ
         if self.vel_v[0,0] == 0:
-            self.drag = numpy.array([[0],[0],[0]],dtype = 'f')
+            self.drag = numpy.array([[0],[0],[0]],dtype = numpy.float_)
 
         elif self.parashoot_time <= self.t:
-            self.drag = numpy.array([1 / 2 * rho * self.vel_v[0,0]^2 * 1.3 * self.sp],[0],[0],dtype = 'f')
+            self.drag = numpy.array([1 / 2 * rho * self.vel_v[0,0]^2 * 1.3 * self.sp],[0],[0],dtype = numpy.float_)
 
         else:
-            self.drag = numpy.array([[0],[0],[0]],dtype = 'f')
+            self.drag = numpy.array([[0],[0],[0]],dtype = numpy.float_)
             self.drag[0,0] = 1 / 2 * rho * self.vel_v[0,0] ** 2 * self.sf * self.CD
             if -self.r_i[2,0] >= -self.launcher_height:
                 self.drag[0,0] += 1 / 2 * rho * self.vel_v[0,0] ** 2 * self.ss * self.CDab * (abs(self.alpha)+abs(self.beta))
@@ -340,15 +338,18 @@ class Rocket():
         #if -self.r_i[2,0] >= -self.launcher_height:
         self.angvel_b = numpy.dot(self.dcm_i2b,self.angvel_i)
         self.vel_b = numpy.dot(self.dcm_i2b,(self.vel_i+self.wind))
+
+        dq_dt = self.quat.dq_dt(self.angvel_b[0,0],self.angvel_b[1,0],self.angvel_b[2,0])
         if self.i == 0:
-            self.sub_angvel_b = copy.deepcopy(self.angvel_b)
-        dq_dt = self.quat.dq_dt((self.angvel_b[0,0]+self.sub_angvel_b[0,0])/2,(self.angvel_b[1,0]+self.sub_angvel_b[1,0])/2,(self.angvel_b[2,0]+self.sub_angvel_b[2,0])/2)
+            self.sub_dq_dt = copy.deepcopy(dq_dt)
+
         self.sub_angvel_b = copy.deepcopy(self.angvel_b)
-        self.quat.q0 += dq_dt.q0 * self.dt
-        self.quat.q1 += dq_dt.q1 * self.dt
-        self.quat.q2 += dq_dt.q2 * self.dt
-        self.quat.q3 += dq_dt.q3 * self.dt
+        self.quat.q0 += (dq_dt.q0+self.sub_dq_dt.q0) /2 * self.dt
+        self.quat.q1 += (dq_dt.q1+self.sub_dq_dt.q1) /2 * self.dt
+        self.quat.q2 += (dq_dt.q2+self.sub_dq_dt.q1) /2 * self.dt
+        self.quat.q3 += (dq_dt.q3+self.sub_dq_dt.q1) /2 * self.dt
         self.quat.normalize()
+        self.sub_dq_dt = copy.deepcopy(dq_dt)
 
 
 
@@ -374,6 +375,7 @@ class Rocket():
             self.logger()
             self.i += 1
             self.t = self.dt * self.i
+            print([self.t,-self.r_i[2],self.vel_v[0]])
             if -self.r_i[2,0] <= 0 and self.vel_i[2,0] >= 0:
                 self.i -= 1
                 break
