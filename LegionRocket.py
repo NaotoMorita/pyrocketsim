@@ -11,6 +11,7 @@
 
 import numpy
 from NaQuaternion import Quaternion
+import matplotlib
 
 class Legion():
     def __init__(self):
@@ -32,13 +33,14 @@ class Rocket():
 
         #飛行姿勢初期化
         self.quaternion_b2i = Quaternion()
+        self.quaternion_b2i.rot2quat(88 * numpy.pi /180, 0, 1, 0)
         self.dcm_b2i = self.quaternion_b2i.quat2dcm()
         self.quaternion_i2b = Quaternion(self.quaternion_b2i.inverse())
         self.dcm_i2b = self.quaternion_i2b.quat2dcm()
 
         #速度座標への変換行列初期化
-        self.dcm_b2v = numpy.zeros((3,3),dtype = "f")
-        self.dcm_v2b = numpy.zeros((3,3),dtype = "f")
+        self.dcm_b2v = numpy.zeros((3,3),dtype = "float_")
+        self.dcm_v2b = numpy.zeros((3,3),dtype = "float_")
 
         #迎え角
         self.alpha = 0.0
@@ -84,26 +86,26 @@ class Rocket():
         self.CL = [[0.0],[0.0],[0.0]]
 
         self.mass = 0.0712
-        self.inatia = [[0.0001,0,0],[0,0.001,0],[0,0,0.001]]
+        self.inatia = [[0.001,0,0],[0,0.1,0],[0,0,0.1]]
 
     def calcaoa_velocityaxis(self):
         #hstackで行列を創るのでその都度初期化する必要あり
-        self.dcm_b2v = numpy.zeros((3,3),dtype = "f")
-        self.dcm_v2b = numpy.zeros((3,3),dtype = "f")
+        self.dcm_b2v = numpy.zeros((3,3),dtype = "float_")
+        self.dcm_v2b = numpy.zeros((3,3),dtype = "float_")
 
         #リストからnumpy_ndarrayに変換
-        vel_b = numpy.array(self.vel_b)
+        vel_b = numpy.array(self.vel_b, dtype = "float_")
 
         xd =  vel_b / numpy.sqrt(vel_b[0] ** 2 + vel_b[1] ** 2 + vel_b[2] ** 2)
-        self.dcm_v2b = xd
+        xd.shape = 3,1
 
         yd =  numpy.cross((xd+numpy.array([[0],[0],[10.0]])).T,xd.T).T
         yd /= numpy.sqrt(yd[0,0] ** 2 + yd[1,0] ** 2 + yd[2,0] ** 2)
+        yd = yd - numpy.dot(yd.T,xd) * xd
 
         zd = numpy.cross(xd.T,yd.T).T
-        zd /= numpy.sqrt(zd[0,0] ** 2 + zd[1,0] ** 2 + zd[2,0] ** 2)
 
-        dcm_v2b = numpy.hstack([self.dcm_v2b,yd,zd])
+        dcm_v2b = numpy.hstack([xd,yd,zd])
         dcm_b2v = numpy.linalg.inv(dcm_v2b)
         self.dcm_v2b = numpy.ndarray.tolist(dcm_v2b)
         self.dcm_b2v = numpy.ndarray.tolist(dcm_b2v)
@@ -129,7 +131,7 @@ class Rocket():
 
 
     def calc_Cd(self):
-        CDaoa = (3-0.07)/(24/180*numpy.pi) + 0.07 #[/rad]
+        CDaoa = (5-0.07)/(24/180*numpy.pi) + 0.07 #[/rad]
         self.Cd[2] =   0.0
         self.Cd[1] =   0.0
         self.Cd[0] = - CDaoa*(self.alpha + self.beta)
@@ -138,6 +140,8 @@ class Rocket():
         #推力カーブを読み込んで推力をリターン
         def thrust(t):
             thrustcurve = numpy.loadtxt("Quest_A8.eng",comments = ";",delimiter = " ")
+            print("thrust")
+            print(numpy.interp(t,thrustcurve[:,0],thrustcurve[:,1]))
             return numpy.interp(t,thrustcurve[:,0],thrustcurve[:,1])
 
 
@@ -187,14 +191,18 @@ class Rocket():
         drag_i = numpy.dot(dcm_b2i,drag_b)
         self.drag_i = numpy.ndarray.tolist(drag_i)
 
-        moment_b = numpy.array(self.moment_b)
-        Cm = numpy.array([[0.0],[0.0],[0.0]])
-        CL = numpy.array(self.CL)
-        Cm = numpy.dot(dcm_v2b, CL) * 0.07
+        moment_b = numpy.array(self.moment_b, dtype = "float_")
+        Cm = numpy.array([[0.0],[0.0],[0.0]], dtype = "float_")
+        CL = numpy.array(self.CL, dtype = "float_")
+        Cm = numpy.dot(dcm_v2b, CL) * 0.15
 
+        print("vel_v")
+        print(vel_v)
         moment_b[2] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[1] * self.rocketlength
         moment_b[1] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[2] * self.rocketlength
         moment_b[0] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[0] * 0.0
+        print("moment_b")
+        print(moment_b)
         self.moment_b = numpy.ndarray.tolist(moment_b)
 
         moment_i = numpy.array(self.moment_i)
@@ -209,10 +217,13 @@ class Rocket():
 
     def integrate(self,t_start = 0):
         def quad_quad_kari(fourth,integ):
-            forth = numpy.array(forth)
-            fst = 65 / 4 * (forth - 3 * integ[-1] + 3 * integ[-2] - ingeg[-3]) / 6
-            snd = 19 / 3 * (-forth + 4 * integ[-1] - 5 * integ[-2] + 2 * ingeg[-3]) / 2
-            fh
+            forth = numpy.array(fourth)
+            integ = numpy.array(integ)
+            fst = 65 / 4 * (fourth - 3 * integ[-1] + 3 * integ[-2] - integ[-3]) / 6
+            snd = 19 / 3 * (-fourth + 4 * integ[-1] - 5 * integ[-2] + 2 * integ[-3]) / 2
+            trd =  5 / 2 * (2 * fourth - 9 * integ[-1] + 18 * integ[-2] - 11 * integ[-3]) / 6
+            quad_value = (fst + snd + trd + integ[-3]) * self.dt
+            return quad_value
         #力に重力の影響付加
         lift_i = numpy.array(self.lift_i)
         drag_i = numpy.array(self.drag_i)
@@ -224,6 +235,7 @@ class Rocket():
 
         inatia   = numpy.array(self.inatia)
         gyro     = numpy.array(self.gyro)
+        #print(gyro)
         moment_i = numpy.array(self.moment_i)
         quat     = numpy.array(self.quaternion_b2i.quat)
         dt = numpy.array(self.dt)
@@ -242,8 +254,10 @@ class Rocket():
             self.gyro = numpy.ndarray.tolist(gyro)
             self.moment_i = numpy.ndarray.tolist(moment_i)
             self.quaternion_b2i.quat = numpy.ndarray.tolist(quat)
+            self.quaternion_b2i.normalize()
             self.dcm_b2i = self.quaternion_b2i.quat2dcm()
             self.quaternion_i2b = Quaternion(self.quaternion_b2i.inverse())
+            self.quaternion_i2b.normalize()
             self.dcm_i2b = self.quaternion_i2b.quat2dcm()
 
             self.integ_dgyro_dt.append(numpy.ndarray.tolist(numpy.dot(numpy.linalg.inv(inatia),moment_i)))
@@ -251,7 +265,6 @@ class Rocket():
             self.integ_forces_i.append(numpy.ndarray.tolist(forces_i / self.mass))
             self.integ_vel_i.append(self.vel_i)
 
-            print(self.r_i)
 
         elif self.i == 2 or self.i == 3:
             vel_i += (forces_i / self.mass + numpy.array(self.integ_forces_i[self.i-2])) / 2 * self.dt
@@ -267,8 +280,10 @@ class Rocket():
             self.gyro = numpy.ndarray.tolist(gyro)
             self.moment_i = numpy.ndarray.tolist(moment_i)
             self.quaternion_b2i.quat = numpy.ndarray.tolist(quat)
+            self.quaternion_b2i.normalize()
             self.dcm_b2i = self.quaternion_b2i.quat2dcm()
             self.quaternion_i2b = Quaternion(self.quaternion_b2i.inverse())
+            self.quaternion_i2b.normalize()
             self.dcm_i2b = self.quaternion_i2b.quat2dcm()
 
             self.integ_dgyro_dt.append(numpy.ndarray.tolist(numpy.dot(numpy.linalg.inv(inatia),moment_i)))
@@ -276,24 +291,25 @@ class Rocket():
             self.integ_forces_i.append(numpy.ndarray.tolist(forces_i / self.mass))
             self.integ_vel_i.append(self.vel_i)
 
-            print(self.r_i)
 
         else:
-            vel_i += (forces_i / self.mass + numpy.array(self.integ_forces_i[-1])) / 2 * self.dt
-            r_i   += (vel_i + self.vel_i[-1]) / 2 * self.dt
+            vel_i += quad_quad_kari(forces_i / self.mass, self.integ_forces_i)
+            r_i   += quad_quad_kari(vel_i,self.integ_vel_i)
 
             self.vel_i = numpy.ndarray.tolist(vel_i)
             self.r_i = numpy.ndarray.tolist(r_i)
 
-            gyro += (numpy.dot(numpy.linalg.inv(inatia),moment_i) + self.integ_forces_i[-1]) / 2 * self.dt
+            gyro += quad_quad_kari(numpy.dot(numpy.linalg.inv(inatia),moment_i),self.integ_dgyro_dt)
             dq_dt = self.quaternion_b2i.dq_dt(gyro[0],gyro[1],gyro[2])
-            quat += (numpy.array(dq_dt) + numpy.array(self.integ_dq_dt[-1])) / 2 * dt
+            quat += quad_quad_kari(numpy.array(dq_dt),self.integ_dq_dt)
 
             self.gyro = numpy.ndarray.tolist(gyro)
             self.moment_i = numpy.ndarray.tolist(moment_i)
             self.quaternion_b2i.quat = numpy.ndarray.tolist(quat)
+            self.quaternion_b2i.normalize()
             self.dcm_b2i = self.quaternion_b2i.quat2dcm()
             self.quaternion_i2b = Quaternion(self.quaternion_b2i.inverse())
+            self.quaternion_i2b.normalize()
             self.dcm_i2b = self.quaternion_i2b.quat2dcm()
 
             self.integ_dgyro_dt.append(numpy.ndarray.tolist(numpy.dot(numpy.linalg.inv(inatia),moment_i)))
@@ -306,10 +322,11 @@ class Rocket():
             self.integ_forces_i.pop(0)
             self.integ_vel_i.pop(0)
 
-            print(self.r_i)
+
 
 
         self.i += 1
+        self.t += self.dt
 
 
     def redifinitions(self):
@@ -319,6 +336,8 @@ class Rocket():
 
         vel_b = numpy.dot(numpy.array(self.dcm_i2b),vel_i)
         self.vel_b = numpy.ndarray.tolist(vel_b)
+        self.quaternion_b2i.normalize()
+        self.quaternion_i2b.normalize()
 
 
 
@@ -334,7 +353,7 @@ class Rocket():
 def main():
 
     rocket = Rocket()
-    for i in range(400):
+    for i in range(700):
         rocket.calcaoa_velocityaxis()
         rocket.calc_CL()
         rocket.calc_Cd()
@@ -342,6 +361,9 @@ def main():
         rocket.rocket_force_morment()
         rocket.integrate()
         rocket.redifinitions()
+
+
+
 
 
 

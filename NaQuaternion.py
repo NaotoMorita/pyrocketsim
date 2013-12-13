@@ -9,12 +9,13 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 import numpy
+import math
 
 class Quaternion():
     def __init__(self,quat = [[1.0],[0.0],[0.0],[0.0]]):
         self.quat = quat
 
-    #鬨ｾ繝ｻ縺醍ｹｧ・ｪ郢晢ｽｼ郢ｧ・ｿ郢昜ｹ昴′郢晢ｽｳ驕ｨ繝ｻ
+    #鬯ｨ・ｾ郢晢ｽｻ邵ｺ驢搾ｽｹ・ｧ繝ｻ・ｪ驛｢譎｢・ｽ・ｼ驛｢・ｧ繝ｻ・ｿ驛｢譏懶ｽｹ譏ｴ窶ｲ驛｢譎｢・ｽ・ｳ鬩包ｽｨ郢晢ｽｻ
     def __truediv__(self,p):
         if isinstance(p,Quaternion):
             p_inv = p.inverse()
@@ -90,12 +91,12 @@ class Quaternion():
             return numpy.ndarray.tolist(q)
 
     def norm(self):
-        quat = numpy.array(self.quat)
-        return numpy.sqrt(quat[0] ** 2 + quat[1] ** 2 + quat[2] ** 2 + quat[3] ** 2 )
+        quat = numpy.array(self.quat,dtype = "float_")
+        return math.sqrt(quat[0] * quat[0]  + quat[1] * quat[1] + quat[2] * quat[2] + quat[3] * quat[3])
 
     def inverse(self):
         norm = self.norm()
-        quat = numpy.array(self.quat,dtype = "f")
+        quat = numpy.array(self.quat,dtype = "float_")
         quat[1] = float(-quat[1])
         quat[2] = float(-quat[2])
         quat[3] = float(-quat[3])
@@ -103,14 +104,14 @@ class Quaternion():
 
     def normalize(self):
         norm = self.norm()
-        quat = numpy.array(self.quat,dtype = "f")
-        self.quat = numpy.ndarray.tolist(quat / norm)
+        quat = numpy.array(self.quat,dtype = "float_")
+        self.quat = numpy.ndarray.tolist(quat / norm )
 
     def rot2quat(self,theta,x,y,z):
-        self.quat[0] =     numpy.cos(theta / 2)
-        self.quat[1] = x * numpy.sin(theta / 2)
-        self.quat[2] = y * numpy.sin(theta / 2)
-        self.quat[3] = z * numpy.sin(theta / 2)
+        self.quat[0][0] =     numpy.cos(theta / 2)
+        self.quat[1][0] = x * numpy.sin(theta / 2)
+        self.quat[2][0] = y * numpy.sin(theta / 2)
+        self.quat[3][0] = z * numpy.sin(theta / 2)
         self.normalize()
 
 
@@ -122,6 +123,8 @@ class Quaternion():
         dq[1,0] =  0.5 * (quat[0] * Ox - quat[3] * Oy + quat[2] * Oz)
         dq[2,0] =  0.5 * (quat[3] * Ox + quat[0] * Oy - quat[1] * Oz)
         dq[3,0] = -0.5 * (quat[2] * Ox - quat[1] * Oy - quat[0] * Oz)
+        #norm = numpy.sqrt(dq[0,0] * dq[0,0] + dq[1,0] * dq[1,0] + dq[2,0] * dq[2,0] + dq[3,0] * dq[3,0])
+        #dq /= norm
 
         return numpy.ndarray.tolist(dq)
 
