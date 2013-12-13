@@ -192,7 +192,7 @@ class Rocket():
         moment_b = numpy.array(self.moment_b, dtype = "float_")
         Cm = numpy.array([[0.0],[0.0],[0.0]], dtype = "float_")
         CL = numpy.array(self.CL, dtype = "float_")
-        Cm = numpy.dot(dcm_v2b, CL) * 0.15
+        Cm = numpy.dot(dcm_v2b, CL) * 0.0001
 
         print("vel_v")
         print(vel_v)
