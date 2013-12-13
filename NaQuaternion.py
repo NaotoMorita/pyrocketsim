@@ -119,12 +119,16 @@ class Quaternion():
     def dq_dt(self, Ox, Oy, Oz):
         quat = numpy.array(self.quat,dtype = "f")
         dq = numpy.zeros((4,1))
+        print("O")
+        print([Ox,Oy,Oz])
         dq[0,0] = -0.5 * (quat[1] * Ox + quat[2] * Oy + quat[3] * Oz)
         dq[1,0] =  0.5 * (quat[0] * Ox - quat[3] * Oy + quat[2] * Oz)
         dq[2,0] =  0.5 * (quat[3] * Ox + quat[0] * Oy - quat[1] * Oz)
         dq[3,0] = -0.5 * (quat[2] * Ox - quat[1] * Oy - quat[0] * Oz)
-        #norm = numpy.sqrt(dq[0,0] * dq[0,0] + dq[1,0] * dq[1,0] + dq[2,0] * dq[2,0] + dq[3,0] * dq[3,0])
-        #dq /= norm
+        print("dq")
+        print(dq)
+        norm = numpy.sqrt(dq[0,0] * dq[0,0] + dq[1,0] * dq[1,0] + dq[2,0] * dq[2,0] + dq[3,0] * dq[3,0])
+        dq /= norm
 
         return numpy.ndarray.tolist(dq)
 

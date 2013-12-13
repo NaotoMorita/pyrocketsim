@@ -80,13 +80,13 @@ class Rocket():
         #TODO : Legionの傘下に入るように
         self.rocketlength = 0.42
         self.sidesurface  = 0.42 * 0.15
-        self.frontsurface = 0.015**2 * numpy.pi
+        self.frontsurface = 0.015 ** 2 * numpy.pi
 
         self.Cd = [[0.0],[0.0],[0.0]]
         self.CL = [[0.0],[0.0],[0.0]]
 
         self.mass = 0.0712
-        self.inatia = [[0.001,0,0],[0,0.1,0],[0,0,0.1]]
+        self.inatia = [[0.0000198,0,0],[0,0.001293,0],[0,0,0.001293]]
 
     def calcaoa_velocityaxis(self):
         #hstackで行列を創るのでその都度初期化する必要あり
@@ -122,7 +122,7 @@ class Rocket():
 
     def calc_CL(self):
         #http://repository.dl.itc.u-tokyo.ac.jp/dspace/bitstream/2261/30502/1/sk009003011.pdf より
-        CLaoa = 1/(24/180*numpy.pi) #[/rad]
+        CLaoa = 2 #[/rad]
         self.CL[2] = CLaoa * self.alpha
         self.CL[1] = CLaoa * self.beta
         self.CL[0] = 0.0
@@ -134,22 +134,20 @@ class Rocket():
         CDaoa = (5-0.07)/(24/180*numpy.pi) + 0.07 #[/rad]
         self.Cd[2] =   0.0
         self.Cd[1] =   0.0
-        self.Cd[0] = - CDaoa*(self.alpha + self.beta)
+        self.Cd[0] =   CDaoa*(self.alpha + self.beta)
 
     def rocket_force_morment(self):
         #推力カーブを読み込んで推力をリターン
         def thrust(t):
             thrustcurve = numpy.loadtxt("Quest_A8.eng",comments = ";",delimiter = " ")
-            print("thrust")
-            print(numpy.interp(t,thrustcurve[:,0],thrustcurve[:,1]))
             return numpy.interp(t,thrustcurve[:,0],thrustcurve[:,1])
 
 
         #使用する変数をndarray化
-        vel_b = numpy.array(self.vel_b)
-        dcm_b2v = numpy.array(self.dcm_b2v)
-        dcm_v2b = numpy.array(self.dcm_v2b)
-        dcm_b2i = numpy.array(self.dcm_b2i)
+        vel_b = numpy.array(self.vel_b, dtype = "float_")
+        dcm_b2v = numpy.array(self.dcm_b2v, dtype = "float_")
+        dcm_v2b = numpy.array(self.dcm_v2b, dtype = "float_")
+        dcm_b2i = numpy.array(self.dcm_b2i, dtype = "float_")
 
         vel_v = numpy.dot(dcm_b2v,vel_b)
 
@@ -171,10 +169,10 @@ class Rocket():
         lift_i = numpy.dot(dcm_b2i,lift_b)
         self.lift_i = numpy.ndarray.tolist(lift_i)
 
-        drag_v = numpy.array(self.drag_v)
-        drag_v[2] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.Cd[2]
-        drag_v[1] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.Cd[1]
-        drag_v[0] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.Cd[0]
+        drag_v = numpy.array(self.drag_v,dtype = "float_")
+        drag_v[2] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.Cd[2]
+        drag_v[1] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.Cd[1]
+        drag_v[0] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.Cd[0]
         self.drag_v = numpy.ndarray.tolist(drag_v)
 
 
@@ -201,8 +199,7 @@ class Rocket():
         moment_b[2] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[1] * self.rocketlength
         moment_b[1] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[2] * self.rocketlength
         moment_b[0] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[0] * 0.0
-        print("moment_b")
-        print(moment_b)
+        print(self.moment_b)
         self.moment_b = numpy.ndarray.tolist(moment_b)
 
         moment_i = numpy.array(self.moment_i)
