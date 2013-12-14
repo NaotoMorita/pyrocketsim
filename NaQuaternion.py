@@ -15,22 +15,22 @@ class Quaternion():
     def __init__(self,quat = [[1.0],[0.0],[0.0],[0.0]]):
         self.quat = quat
 
-    #鬯ｨ・ｾ郢晢ｽｻ邵ｺ驢搾ｽｹ・ｧ繝ｻ・ｪ驛｢譎｢・ｽ・ｼ驛｢・ｧ繝ｻ・ｿ驛｢譏懶ｽｹ譏ｴ窶ｲ驛｢譎｢・ｽ・ｳ鬩包ｽｨ郢晢ｽｻ
+    #鬯ｯ・ｨ繝ｻ・ｾ驛｢譎｢・ｽ・ｻ驍ｵ・ｺ鬩｢謳ｾ・ｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴乗・・ｽ・ｹ隴擾ｽｴ遯ｶ・ｲ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬯ｩ蛹・ｽｽ・ｨ驛｢譎｢・ｽ・ｻ
     def __truediv__(self,p):
         if isinstance(p,Quaternion):
             p_inv = p.inverse()
             return self * p_inv
 
         elif isinstance(p,int) or isinstance(p,float):
-            q = numpy.array(self.quat,dtype = "f")
+            q = numpy.array(self.quat,dtype = "float_")
             q /= float(p)
             return numpy.ndarray.tolist(q)
 
     def __mul__(self,p):
 
         if isinstance(p,Quaternion):
-            q = numpy.array(self.quat,dtype = "f")
-            p = numpy.array(p.quat,dtype = "f")
+            q = numpy.array(self.quat,dtype = "float_")
+            p = numpy.array(p.quat,dtype = "float_")
             q_mat = numpy.zeros((4,4))
 
             q_mat[0,0] =  q[0]
@@ -58,8 +58,8 @@ class Quaternion():
             return numpy.ndarray.tolist(quat_qp)
 
         if isinstance(p,list):
-            q = numpy.array(self.quat,dtype = "f")
-            p = numpy.array(p,dtype = "f")
+            q = numpy.array(self.quat,dtype = "float_")
+            p = numpy.array(p,dtype = "float_")
             q_mat = numpy.zeros((4,4))
 
             q_mat[0,0] =  q[0]
@@ -86,7 +86,7 @@ class Quaternion():
             return numpy.ndarray.tolist(quat_qp)
 
         elif isinstance(p,int) or isinstance(p,float):
-            q = numpy.array(self.quat,dtype = "f")
+            q = numpy.array(self.quat,dtype = "float_")
             q *= p
             return numpy.ndarray.tolist(q)
 
@@ -117,24 +117,20 @@ class Quaternion():
 
 
     def dq_dt(self, Ox, Oy, Oz):
-        quat = numpy.array(self.quat,dtype = "f")
+        quat = numpy.array(self.quat,dtype = "float_")
         dq = numpy.zeros((4,1))
-        print("O")
-        print([Ox,Oy,Oz])
         dq[0,0] = -0.5 * (quat[1] * Ox + quat[2] * Oy + quat[3] * Oz)
         dq[1,0] =  0.5 * (quat[0] * Ox - quat[3] * Oy + quat[2] * Oz)
         dq[2,0] =  0.5 * (quat[3] * Ox + quat[0] * Oy - quat[1] * Oz)
         dq[3,0] = -0.5 * (quat[2] * Ox - quat[1] * Oy - quat[0] * Oz)
-        print("dq")
-        print(dq)
-        norm = numpy.sqrt(dq[0,0] * dq[0,0] + dq[1,0] * dq[1,0] + dq[2,0] * dq[2,0] + dq[3,0] * dq[3,0])
-        dq /= norm
+        #norm = numpy.sqrt(dq[0,0] * dq[0,0] + dq[1,0] * dq[1,0] + dq[2,0] * dq[2,0] + dq[3,0] * dq[3,0])
+        #dq /= norm
 
         return numpy.ndarray.tolist(dq)
 
     def quat2dcm(self):
-        dcm = numpy.zeros((3,3),dtype = "f")
-        quat = numpy.array(self.quat,dtype = "f")
+        dcm = numpy.zeros((3,3),dtype = "float_")
+        quat = numpy.array(self.quat,dtype = "float_")
         dcm[0,0] =  float(quat[0] ** 2 + quat[1] ** 2 - quat[2] ** 2 - quat[3] ** 2)
         dcm[0,1] = 2.0 * (quat[1] * quat[2] - quat[0] * quat[3])
         dcm[0,2] = 2.0 * (quat[0] * quat[2] - quat[1] * quat[3])
@@ -147,11 +143,11 @@ class Quaternion():
         return numpy.ndarray.tolist(dcm)
 
     def quat2euler(self):
-        quat = numpy.array(self.quat,dtype = "f")
+        quat = numpy.array(self.quat,dtype = "float_")
         phi = numpy.arctan((2 * (quat[0] * quat[1] + quat[2] * quat[3] )) / (1 - 2 * (quat[1] ** 2 + quat[2] ** 2)))
         theta = numpy.arcsin(2 * (quat[0] * quat[2] - quat[3] * quat[1]))
         psi = numpy.arctan((2 * (quat[0] * quat[3] + quat[1] * quat[2] )) / (1 - 2 * (quat[2] ** 2 + quat[3] ** 2)))
-        return [[phi],[theta],[psi]]
+        return numpy.ndarray.tolist(numpy.array([phi,theta,psi]))
 
 def main():
     pass

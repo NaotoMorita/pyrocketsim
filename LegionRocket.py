@@ -11,7 +11,7 @@
 
 import numpy
 from NaQuaternion import Quaternion
-import matplotlib
+import matplotlib.pyplot as plt
 
 class Legion():
     def __init__(self):
@@ -64,10 +64,18 @@ class Rocket():
         self.gyro = [[0.0],[0.0],[0.0]]
 
         #ロガー初期化
-        self.log_r     = []
-        self.log_vel_i = []
-        self.log_vel_b = []
-        self.log_vel_v = []
+        self.log_r     = [[],[],[]]
+        self.log_vel_i = [[],[],[]]
+        self.log_vel_b = [[],[],[]]
+        self.log_vel_v = [[],[],[]]
+        self.log_euler = [[],[],[]]
+        self.log_force_i = [[],[],[]]
+        self.log_lift_i = [[],[],[]]
+
+        self.log_t = []
+        self.log_alpha = []
+        self.log_beta = []
+
 
         #積分用ログ初期化
         self.integ_dgyro_dt = []
@@ -96,10 +104,14 @@ class Rocket():
         #リストからnumpy_ndarrayに変換
         vel_b = numpy.array(self.vel_b, dtype = "float_")
 
+
         xd =  vel_b / numpy.sqrt(vel_b[0] ** 2 + vel_b[1] ** 2 + vel_b[2] ** 2)
         xd.shape = 3,1
 
-        yd =  numpy.cross((xd+numpy.array([[0],[0],[10.0]])).T,xd.T).T
+        if vel_b[0] >= 0:
+            yd =  numpy.cross((xd+numpy.array([[0],[0],[10.0]])).T,xd.T).T
+        else:
+            yd =  numpy.cross((xd-numpy.array([[0],[0],[10.0]])).T,xd.T).T
         yd /= numpy.sqrt(yd[0,0] ** 2 + yd[1,0] ** 2 + yd[2,0] ** 2)
         yd = yd - numpy.dot(yd.T,xd) * xd
 
@@ -112,8 +124,8 @@ class Rocket():
 
 
         #逆進しても力の働く方向は同じであることに注意
-        self.alpha = -numpy.arctan(vel_b[2,0] / vel_b[0,0]) * abs(vel_b[0,0]) / vel_b[0,0]
-        self.beta  = -numpy.arctan(vel_b[1,0] / vel_b[0,0]) * abs(vel_b[0,0]) / vel_b[0,0]
+        self.alpha = -numpy.arctan(vel_b[2,0] / vel_b[0,0])# * abs(vel_b[2,0]) / vel_b[2,0]
+        self.beta  = -numpy.arctan(vel_b[1,0] / vel_b[0,0]) #* abs(vel_b[1,0]) / vel_b[1,0]
 
     def calcdcm_b2i_i2b(self):
         self.dcm_b2i = self.quaternion_b2i.quat2dcm()
@@ -192,14 +204,10 @@ class Rocket():
         moment_b = numpy.array(self.moment_b, dtype = "float_")
         Cm = numpy.array([[0.0],[0.0],[0.0]], dtype = "float_")
         CL = numpy.array(self.CL, dtype = "float_")
-        Cm = numpy.dot(dcm_v2b, CL) * 0.0001
-
-        print("vel_v")
-        print(vel_v)
+        Cm = numpy.dot(dcm_v2b, CL) * 0.01
         moment_b[2] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[1] * self.rocketlength
         moment_b[1] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[2] * self.rocketlength
         moment_b[0] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[0] * 0.0
-        print(self.moment_b)
         self.moment_b = numpy.ndarray.tolist(moment_b)
 
         moment_i = numpy.array(self.moment_i)
@@ -222,17 +230,19 @@ class Rocket():
             quad_value = (fst + snd + trd + integ[-3]) * self.dt
             return quad_value
         #力に重力の影響付加
-        lift_i = numpy.array(self.lift_i)
-        drag_i = numpy.array(self.drag_i)
-        thrust_i = numpy.array(self.thrust_i)
-        vel_i = numpy.array(self.vel_i)
-        r_i = numpy.array(self.r_i)
+        lift_i = numpy.array(self.lift_i, dtype = "float_")
+        drag_i = numpy.array(self.drag_i, dtype = "float_")
+        thrust_i = numpy.array(self.thrust_i, dtype = "float_")
+        vel_i = numpy.array(self.vel_i, dtype = "float_")
+        r_i = numpy.array(self.r_i, dtype = "float_")
 
-        forces_i = lift_i + drag_i + thrust_i + self.mass * numpy.array([[0.0],[0.0],[9.8]])
+        forces_i = self.mass * numpy.array([[0.0],[0.0],[9.8]],dtype = "float_") + thrust_i
+        #     + lift_i + drag_i
+        self.force_i = numpy.ndarray.tolist(forces_i)
+        print(self.force_i[2][0])
 
         inatia   = numpy.array(self.inatia)
         gyro     = numpy.array(self.gyro)
-        #print(gyro)
         moment_i = numpy.array(self.moment_i)
         quat     = numpy.array(self.quaternion_b2i.quat)
         dt = numpy.array(self.dt)
@@ -270,7 +280,7 @@ class Rocket():
             self.vel_i = numpy.ndarray.tolist(vel_i)
             self.r_i = numpy.ndarray.tolist(r_i)
 
-            gyro += (numpy.dot(numpy.linalg.inv(inatia),moment_i) + self.integ_forces_i[self.i-2]) / 2 * self.dt
+            gyro += (numpy.dot(numpy.linalg.inv(inatia),moment_i) + self.integ_dgyro_dt[self.i-2]) / 2 * self.dt
             dq_dt = self.quaternion_b2i.dq_dt(gyro[0],gyro[1],gyro[2])
             quat += (numpy.array(dq_dt) + numpy.array(self.integ_dq_dt[self.i-2])) / 2 * dt
 
@@ -336,6 +346,16 @@ class Rocket():
         self.quaternion_b2i.normalize()
         self.quaternion_i2b.normalize()
 
+    def log(self):
+        self.log_r = numpy.hstack((self.log_r,self.r_i))
+        self.log_vel_b = numpy.hstack((self.log_vel_b,self.vel_b))
+        self.log_vel_v = numpy.hstack((self.log_vel_v,self.vel_v))
+        self.log_force_i = numpy.hstack((self.log_force_i,self.force_i))
+        self.log_lift_i = numpy.hstack((self.log_lift_i,self.lift_i))
+        self.log_euler = numpy.hstack((self.log_euler,self.quaternion_b2i.quat2euler()))
+        self.log_t = numpy.hstack((self.log_t,self.t))
+        self.log_alpha = numpy.hstack((self.log_alpha,self.alpha))
+        self.log_beta = numpy.hstack((self.log_beta,self.beta))
 
 
 
@@ -350,7 +370,7 @@ class Rocket():
 def main():
 
     rocket = Rocket()
-    for i in range(700):
+    for i in range(1500):
         rocket.calcaoa_velocityaxis()
         rocket.calc_CL()
         rocket.calc_Cd()
@@ -358,6 +378,22 @@ def main():
         rocket.rocket_force_morment()
         rocket.integrate()
         rocket.redifinitions()
+        rocket.log()
+
+
+    print(rocket.t)
+    print(rocket.log_r)
+    plt.plot(rocket.log_t,-rocket.log_r[2][:])
+    plt.hold(True)
+    #plt.plot(rocket.log_t,rocket.log_vel_b[0][:])
+    #plt.plot(rocket.log_t,rocket.log_vel_v[0][:])
+    #plt.plot(rocket.log_t,rocket.log_lift_i[0][:] * 1000)
+    plt.plot(rocket.log_t,rocket.log_alpha * 180/ numpy.pi)
+    #plt.plot(rocket.log_t,rocket.log_lift_i[2][:] * 10)
+    plt.plot(rocket.log_t,rocket.log_euler[1] * 180 / numpy.pi)
+
+    plt.show()
+
 
 
 
