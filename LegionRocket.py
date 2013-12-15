@@ -21,7 +21,7 @@ class Rocket():
     def __init__(self):
         #時間初期化
         self.t = 0
-        self.dt = 0.005
+        self.dt = 0.001
         self.i = 1
         #速度系初期化
         self.vel_b = [[0.01],[0.01],[0.01]]
@@ -126,8 +126,15 @@ class Rocket():
 
         #逆進しても力の働く方向は同じであることに注意
         #arcsineでやる方が安全かも
+        #if vel_b[0,0] >= vel_b[2,0]:
         self.alpha = -numpy.arctan(vel_b[2,0] / vel_b[0,0])# * abs(vel_b[2,0]) / vel_b[2,0]
+        #else:
+        #    self.alpha = numpy.arctan(vel_b[0,0] / vel_b[2,0])
+        #if vel_b[0,0] >= vel_b[1,0]:
         self.beta  = -numpy.arctan(vel_b[1,0] / vel_b[0,0]) #* abs(vel_b[1,0]) / vel_b[1,0]
+        #else:
+        #    self.beta  = numpy.arctan(vel_b[0,0] / vel_b[1,0])
+
 
     def calcdcm_b2i_i2b(self):
         self.dcm_b2i = self.quaternion_b2i.quat2dcm()
@@ -138,18 +145,27 @@ class Rocket():
         #http://repository.dl.itc.u-tokyo.ac.jp/dspace/bitstream/2261/30502/1/sk009003011.pdf より
         #失速を考慮すること　過大なCLは高迎え角時推力となってしまう
         CLaoa = 2 #[/rad]
-        self.CL[2] = CLaoa * self.alpha
-        self.CL[1] = CLaoa * self.beta
+        if abs(self.alpha) <= 40:
+            self.CL[2] = CLaoa * self.alpha
+        else:
+            self.CL[2] = (- 0.01 * CLaoa * (abs(self.alpha) - 40) + CLaoa * 40) * abs(self.alpha) / self.alpha
+
+        if abs(self.beta) <= 40:
+            self.CL[1] = CLaoa * self.beta
+        else:
+            self.CL[1] = (- 0.01 * CLaoa * (abs(self.beta) - 40) + CLaoa * 40) * abs(self.beta) / self.alpha
         self.CL[0] = 0.0
 
 
 
 
     def calc_Cd(self):
-        CDaoa = (5-0.07)/(24/180*numpy.pi) + 0.07 #[/rad]
+        CDaoa = 0.08
         self.Cd[2] =   0.0
         self.Cd[1] =   0.0
-        self.Cd[0] =   CDaoa*(self.alpha + self.beta)
+        self.Cd[0] =   CDaoa * (abs(self.alpha) + abs(self.beta))
+
+
 
     def rocket_force_morment(self):
         #推力カーブを読み込んで推力をリターン
@@ -165,6 +181,7 @@ class Rocket():
         dcm_b2i = numpy.array(self.dcm_b2i, dtype = "float_")
 
         vel_v = numpy.dot(dcm_b2v,vel_b)
+        self.vel_v = numpy.ndarray.tolist(vel_v)
 
         rho = 1.184
 
@@ -194,9 +211,9 @@ class Rocket():
         drag_b = numpy.array(self.drag_b)
         drag_b = numpy.dot(dcm_v2b,drag_v)
 
-        drag_b[2] += 1 / 2 * rho * vel_b[2] ** 2 * self.sidesurface * 0.5
-        drag_b[1] += 1 / 2 * rho * vel_b[1] ** 2 * self.sidesurface * 0.5
-        drag_b[0] += 1 / 2 * rho * vel_b[0] ** 2 * self.frontsurface * 0.3
+        #drag_b[2] -= 1 / 2 * rho * vel_b[2] ** 2 * self.sidesurface * 0.5 * abs(vel_b[2]) / vel_b[2]
+        #drag_b[1] -= 1 / 2 * rho * vel_b[1] ** 2 * self.sidesurface * 0.5 * abs(vel_b[1]) / vel_b[1]
+        #drag_b[0] -= 1 / 2 * rho * vel_b[0] ** 2 * self.frontsurface * 0.01 * abs(vel_b[0]) / vel_b[0]
 
         self.drag_b = numpy.ndarray.tolist(drag_b)
 
@@ -207,7 +224,8 @@ class Rocket():
         moment_b = numpy.array(self.moment_b, dtype = "float_")
         Cm = numpy.array([[0.0],[0.0],[0.0]], dtype = "float_")
         CL = numpy.array(self.CL, dtype = "float_")
-        Cm = numpy.dot(dcm_v2b, CL) * 0.01
+        Cd = numpy.array(self.Cd, dtype = "float_")
+        Cm = numpy.dot(dcm_v2b, (CL + Cd)) * 0.05
 
         #Cdによる復元力を考慮すること。
         moment_b[2] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[1] * self.rocketlength
@@ -227,8 +245,8 @@ class Rocket():
 
     def integrate(self,t_start = 0):
         def quad_quad_kari(fourth,integ):
-            forth = numpy.array(fourth)
-            integ = numpy.array(integ)
+            forth = numpy.array(fourth,dtype = "float_")
+            integ = numpy.array(integ,dtype = "float_")
             fst = 65 / 4 * (fourth - 3 * integ[-1] + 3 * integ[-2] - integ[-3]) / 6
             snd = 19 / 3 * (-fourth + 4 * integ[-1] - 5 * integ[-2] + 2 * integ[-3]) / 2
             trd =  5 / 2 * (2 * fourth - 9 * integ[-1] + 18 * integ[-2] - 11 * integ[-3]) / 6
@@ -241,10 +259,9 @@ class Rocket():
         vel_i = numpy.array(self.vel_i, dtype = "float_")
         r_i = numpy.array(self.r_i, dtype = "float_")
 
-        forces_i = self.mass * numpy.array([[0.0],[0.0],[9.8]],dtype = "float_") + thrust_i
+        forces_i = self.mass * numpy.array([[0.0],[0.0],[9.8]],dtype = "float_") + thrust_i + lift_i + drag_i
         #     + lift_i + drag_i
         self.force_i = numpy.ndarray.tolist(forces_i)
-        print(self.force_i[2][0])
 
         inatia   = numpy.array(self.inatia)
         gyro     = numpy.array(self.gyro)
@@ -313,7 +330,7 @@ class Rocket():
 
             gyro += quad_quad_kari(numpy.dot(numpy.linalg.inv(inatia),moment_i),self.integ_dgyro_dt)
             dq_dt = self.quaternion_b2i.dq_dt(gyro[0],gyro[1],gyro[2])
-            quat += quad_quad_kari(numpy.array(dq_dt),self.integ_dq_dt)
+            quat += quad_quad_kari(numpy.array(dq_dt,dtype = "float_"),self.integ_dq_dt)
 
             self.gyro = numpy.ndarray.tolist(gyro)
             self.moment_i = numpy.ndarray.tolist(moment_i)
@@ -375,7 +392,7 @@ class Rocket():
 def main():
 
     rocket = Rocket()
-    for i in range(1500):
+    for i in range(8000):
         rocket.calcaoa_velocityaxis()
         rocket.calc_CL()
         rocket.calc_Cd()
@@ -384,18 +401,21 @@ def main():
         rocket.integrate()
         rocket.redifinitions()
         rocket.log()
+        print(rocket.vel_v)
 
 
     print(rocket.t)
     print(rocket.log_r)
-    plt.plot(rocket.log_t,-rocket.log_r[2][:])
+    plt.plot(rocket.log_r[0][:],-rocket.log_r[2][:])
     plt.hold(True)
+    #plt.axis("equal")
     #plt.plot(rocket.log_t,rocket.log_vel_b[0][:])
-    #plt.plot(rocket.log_t,rocket.log_vel_v[0][:])
+    plt.plot(rocket.log_r[0][:],rocket.log_vel_v[0][:])
     #plt.plot(rocket.log_t,rocket.log_lift_i[0][:] * 1000)
-    plt.plot(rocket.log_t,rocket.log_alpha * 180/ numpy.pi)
+    plt.plot(rocket.log_r[0][:],rocket.log_alpha * 180/ numpy.pi)
     #plt.plot(rocket.log_t,rocket.log_lift_i[2][:] * 10)
-    plt.plot(rocket.log_t,rocket.log_euler[1] * 180 / numpy.pi)
+    plt.plot(rocket.log_r[0][:],rocket.log_euler[1] * 180 / numpy.pi)
+    #plt.plot(rocket.log_r[0][:],rocket.log_euler[0] * 180 / numpy.pi)
 
     plt.show()
 

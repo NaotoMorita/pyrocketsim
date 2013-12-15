@@ -1,4 +1,4 @@
-#-------------------------------------------------------------------------------
+﻿#-------------------------------------------------------------------------------
 # Name:        module1
 # Purpose:
 #
@@ -15,7 +15,7 @@ class Quaternion():
     def __init__(self,quat = [[1.0],[0.0],[0.0],[0.0]]):
         self.quat = quat
 
-    #鬯ｯ・ｨ繝ｻ・ｾ驛｢譎｢・ｽ・ｻ驍ｵ・ｺ鬩｢謳ｾ・ｽ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴乗・・ｽ・ｹ隴擾ｽｴ遯ｶ・ｲ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬯ｩ蛹・ｽｽ・ｨ驛｢譎｢・ｽ・ｻ
+
     def __truediv__(self,p):
         if isinstance(p,Quaternion):
             p_inv = p.inverse()
@@ -117,14 +117,17 @@ class Quaternion():
 
 
     def dq_dt(self, Ox, Oy, Oz):
-        quat = numpy.array(self.quat,dtype = "float_")
-        dq = numpy.zeros((4,1))
-        dq[0,0] = -0.5 * (quat[1] * Ox + quat[2] * Oy + quat[3] * Oz)
-        dq[1,0] =  0.5 * (quat[0] * Ox - quat[3] * Oy + quat[2] * Oz)
-        dq[2,0] =  0.5 * (quat[3] * Ox + quat[0] * Oy - quat[1] * Oz)
-        dq[3,0] = -0.5 * (quat[2] * Ox - quat[1] * Oy - quat[0] * Oz)
+        #quat = numpy.array(self.quat,dtype = "float_")
+        #dq = numpy.zeros((4,1))
+        #dq[0,0] = -0.5 * (quat[1] * Ox + quat[2] * Oy + quat[3] * Oz)
+        #dq[1,0] =  0.5 * (quat[0] * Ox - quat[3] * Oy + quat[2] * Oz)
+        #dq[2,0] =  0.5 * (quat[3] * Ox + quat[0] * Oy - quat[1] * Oz)
+        #dq[3,0] = -0.5 * (quat[2] * Ox - quat[1] * Oy - quat[0] * Oz)
         #norm = numpy.sqrt(dq[0,0] * dq[0,0] + dq[1,0] * dq[1,0] + dq[2,0] * dq[2,0] + dq[3,0] * dq[3,0])
         #dq /= norm
+        #return numpy.ndarray.tolist(dq)
+        omega_quat = Quaternion([[0],[Ox],[Oy],[Oz]])
+        dq = numpy.array(self * omega_quat,dtype = "float_") / 2
 
         return numpy.ndarray.tolist(dq)
 
