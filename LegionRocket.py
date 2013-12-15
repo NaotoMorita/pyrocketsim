@@ -98,6 +98,7 @@ class Rocket():
 
     def calcaoa_velocityaxis(self):
         #hstackで行列を創るのでその都度初期化する必要あり
+        #主要となる咆哮を定義する必要があるかも
         self.dcm_b2v = numpy.zeros((3,3),dtype = "float_")
         self.dcm_v2b = numpy.zeros((3,3),dtype = "float_")
 
@@ -124,6 +125,7 @@ class Rocket():
 
 
         #逆進しても力の働く方向は同じであることに注意
+        #arcsineでやる方が安全かも
         self.alpha = -numpy.arctan(vel_b[2,0] / vel_b[0,0])# * abs(vel_b[2,0]) / vel_b[2,0]
         self.beta  = -numpy.arctan(vel_b[1,0] / vel_b[0,0]) #* abs(vel_b[1,0]) / vel_b[1,0]
 
@@ -134,6 +136,7 @@ class Rocket():
 
     def calc_CL(self):
         #http://repository.dl.itc.u-tokyo.ac.jp/dspace/bitstream/2261/30502/1/sk009003011.pdf より
+        #失速を考慮すること　過大なCLは高迎え角時推力となってしまう
         CLaoa = 2 #[/rad]
         self.CL[2] = CLaoa * self.alpha
         self.CL[1] = CLaoa * self.beta
@@ -205,6 +208,8 @@ class Rocket():
         Cm = numpy.array([[0.0],[0.0],[0.0]], dtype = "float_")
         CL = numpy.array(self.CL, dtype = "float_")
         Cm = numpy.dot(dcm_v2b, CL) * 0.01
+
+        #Cdによる復元力を考慮すること。
         moment_b[2] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[1] * self.rocketlength
         moment_b[1] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[2] * self.rocketlength
         moment_b[0] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[0] * 0.0
