@@ -33,7 +33,7 @@ class Rocket():
 
         #飛行姿勢初期化
         self.quaternion_b2i = Quaternion()
-        self.quaternion_b2i.rot2quat(88 * numpy.pi /180, 0, 1, 0)
+        self.quaternion_b2i.rot2quat(90 * numpy.pi /180, 0, 1, 0)
         self.dcm_b2i = self.quaternion_b2i.quat2dcm()
         self.quaternion_i2b = Quaternion(self.quaternion_b2i.inverse())
         self.dcm_i2b = self.quaternion_i2b.quat2dcm()
@@ -86,8 +86,8 @@ class Rocket():
 
         #パラメータ代入
         #TODO : Legionの傘下に入るように
-        self.rocketlength = 0.42
-        self.sidesurface  = 0.42 * 0.15
+        self.rocketlength = 0.32
+        self.sidesurface  = 0.32 * 0.015
         self.frontsurface = 0.015 ** 2 * numpy.pi
 
         self.Cd = [[0.0],[0.0],[0.0]]
@@ -127,11 +127,11 @@ class Rocket():
         #逆進しても力の働く方向は同じであることに注意
         #arcsineでやる方が安全かも
         #if vel_b[0,0] >= vel_b[2,0]:
-        self.alpha = -numpy.arctan(vel_b[2,0] / vel_b[0,0])# * abs(vel_b[2,0]) / vel_b[2,0]
+        self.alpha = abs(numpy.arctan(vel_b[2,0] / vel_b[0,0]))# * abs(vel_b[2,0]) / vel_b[2,0]
         #else:
         #    self.alpha = numpy.arctan(vel_b[0,0] / vel_b[2,0])
         #if vel_b[0,0] >= vel_b[1,0]:
-        self.beta  = -numpy.arctan(vel_b[1,0] / vel_b[0,0]) #* abs(vel_b[1,0]) / vel_b[1,0]
+        self.beta  = abs(numpy.arctan(vel_b[1,0] / vel_b[0,0])) #* abs(vel_b[1,0]) / vel_b[1,0]
         #else:
         #    self.beta  = numpy.arctan(vel_b[0,0] / vel_b[1,0])
 
@@ -144,23 +144,23 @@ class Rocket():
     def calc_CL(self):
         #http://repository.dl.itc.u-tokyo.ac.jp/dspace/bitstream/2261/30502/1/sk009003011.pdf より
         #失速を考慮すること　過大なCLは高迎え角時推力となってしまう
-        CLaoa = 2 #[/rad]
+        CLaoa = 0.5 #[/rad]
         if abs(self.alpha) <= 40:
-            self.CL[2] = CLaoa * self.alpha
+            self.CL[2] = CLaoa * abs(self.alpha)
         else:
-            self.CL[2] = (- 0.01 * CLaoa * (abs(self.alpha) - 40) + CLaoa * 40) * abs(self.alpha) / self.alpha
+            self.CL[2] = (- 0.01 * CLaoa * (abs(self.alpha) - 40) + CLaoa * 40)
 
         if abs(self.beta) <= 40:
-            self.CL[1] = CLaoa * self.beta
+            self.CL[1] = CLaoa * abs(self.beta)
         else:
-            self.CL[1] = (- 0.01 * CLaoa * (abs(self.beta) - 40) + CLaoa * 40) * abs(self.beta) / self.alpha
+            self.CL[1] = (- 0.01 * CLaoa * (abs(self.beta) - 40) + CLaoa * 40)
         self.CL[0] = 0.0
 
 
 
 
     def calc_Cd(self):
-        CDaoa = 0.08
+        CDaoa = 1
         self.Cd[2] =   0.0
         self.Cd[1] =   0.0
         self.Cd[0] =   CDaoa * (abs(self.alpha) + abs(self.beta))
@@ -187,9 +187,9 @@ class Rocket():
 
         #全ての座標系での揚力、抗力、モーメントを求める
         lift_v = numpy.array(self.lift_v)
-        lift_v[2] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[2]
-        lift_v[1] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[1]
-        lift_v[0] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[0]
+        lift_v[2] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[2] * abs(vel_b[2]) / vel_b[2]
+        lift_v[1] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[1] * abs(vel_b[1]) / vel_b[1]
+        lift_v[0] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[0] * abs(vel_b[0]) / vel_b[0]
         self.lift_v = numpy.ndarray.tolist(lift_v)
 
 
@@ -213,7 +213,7 @@ class Rocket():
 
         #drag_b[2] -= 1 / 2 * rho * vel_b[2] ** 2 * self.sidesurface * 0.5 * abs(vel_b[2]) / vel_b[2]
         #drag_b[1] -= 1 / 2 * rho * vel_b[1] ** 2 * self.sidesurface * 0.5 * abs(vel_b[1]) / vel_b[1]
-        #drag_b[0] -= 1 / 2 * rho * vel_b[0] ** 2 * self.frontsurface * 0.01 * abs(vel_b[0]) / vel_b[0]
+        drag_b[0] -= 1 / 2 * rho * vel_b[0] ** 2 * self.frontsurface * 1 * abs(vel_b[0]) / vel_b[0]
 
         self.drag_b = numpy.ndarray.tolist(drag_b)
 
@@ -225,12 +225,12 @@ class Rocket():
         Cm = numpy.array([[0.0],[0.0],[0.0]], dtype = "float_")
         CL = numpy.array(self.CL, dtype = "float_")
         Cd = numpy.array(self.Cd, dtype = "float_")
-        Cm = numpy.dot(dcm_v2b, (CL + Cd)) * 0.05
+        Cm = numpy.dot(dcm_v2b, (CL - Cd)) * 0.2
 
         #Cdによる復元力を考慮すること。
         moment_b[2] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[1] * self.rocketlength
         moment_b[1] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[2] * self.rocketlength
-        moment_b[0] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[0] * 0.0
+        moment_b[0] =  1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * Cm[0] * self.rocketlength
         self.moment_b = numpy.ndarray.tolist(moment_b)
 
         moment_i = numpy.array(self.moment_i)
@@ -245,7 +245,7 @@ class Rocket():
 
     def integrate(self,t_start = 0):
         def quad_quad_kari(fourth,integ):
-            forth = numpy.array(fourth,dtype = "float_")
+            fourth = numpy.array(fourth,dtype = "float_")
             integ = numpy.array(integ,dtype = "float_")
             fst = 65 / 4 * (fourth - 3 * integ[-1] + 3 * integ[-2] - integ[-3]) / 6
             snd = 19 / 3 * (-fourth + 4 * integ[-1] - 5 * integ[-2] + 2 * integ[-3]) / 2
@@ -277,7 +277,7 @@ class Rocket():
             self.r_i = numpy.ndarray.tolist(r_i)
 
             gyro += numpy.dot(numpy.linalg.inv(inatia),moment_i) * self.dt
-            dq_dt = self.quaternion_b2i.dq_dt(gyro[0],gyro[1],gyro[2])
+            dq_dt = self.quaternion_b2i.dq_dt(0,gyro[1],gyro[2])
             quat += numpy.array(dq_dt) * dt
 
             self.gyro = numpy.ndarray.tolist(gyro)
@@ -303,7 +303,7 @@ class Rocket():
             self.r_i = numpy.ndarray.tolist(r_i)
 
             gyro += (numpy.dot(numpy.linalg.inv(inatia),moment_i) + self.integ_dgyro_dt[self.i-2]) / 2 * self.dt
-            dq_dt = self.quaternion_b2i.dq_dt(gyro[0],gyro[1],gyro[2])
+            dq_dt = self.quaternion_b2i.dq_dt(0,gyro[1],gyro[2])
             quat += (numpy.array(dq_dt) + numpy.array(self.integ_dq_dt[self.i-2])) / 2 * dt
 
             self.gyro = numpy.ndarray.tolist(gyro)
@@ -329,8 +329,9 @@ class Rocket():
             self.r_i = numpy.ndarray.tolist(r_i)
 
             gyro += quad_quad_kari(numpy.dot(numpy.linalg.inv(inatia),moment_i),self.integ_dgyro_dt)
-            dq_dt = self.quaternion_b2i.dq_dt(gyro[0],gyro[1],gyro[2])
-            quat += quad_quad_kari(numpy.array(dq_dt,dtype = "float_"),self.integ_dq_dt)
+            dq_dt = self.quaternion_b2i.dq_dt(0,gyro[1],gyro[2])
+            quat += quad_quad_kari(dq_dt,self.integ_dq_dt)
+            print(quat)
 
             self.gyro = numpy.ndarray.tolist(gyro)
             self.moment_i = numpy.ndarray.tolist(moment_i)
@@ -392,7 +393,7 @@ class Rocket():
 def main():
 
     rocket = Rocket()
-    for i in range(8000):
+    for i in range(5000):
         rocket.calcaoa_velocityaxis()
         rocket.calc_CL()
         rocket.calc_Cd()
@@ -401,20 +402,20 @@ def main():
         rocket.integrate()
         rocket.redifinitions()
         rocket.log()
-        print(rocket.vel_v)
+        #print(rocket.quaternion_b2i.quat[2])
 
 
     print(rocket.t)
     print(rocket.log_r)
-    plt.plot(rocket.log_r[0][:],-rocket.log_r[2][:])
+    plt.plot(rocket.log_t,-rocket.log_r[2][:])
     plt.hold(True)
     #plt.axis("equal")
     #plt.plot(rocket.log_t,rocket.log_vel_b[0][:])
-    plt.plot(rocket.log_r[0][:],rocket.log_vel_v[0][:])
+    #plt.plot(rocket.log_r[0][:],rocket.log_vel_b[0][:])
     #plt.plot(rocket.log_t,rocket.log_lift_i[0][:] * 1000)
-    plt.plot(rocket.log_r[0][:],rocket.log_alpha * 180/ numpy.pi)
+    #plt.plot(rocket.log_r[0][:],rocket.log_alpha * 180/ numpy.pi)
     #plt.plot(rocket.log_t,rocket.log_lift_i[2][:] * 10)
-    plt.plot(rocket.log_r[0][:],rocket.log_euler[1] * 180 / numpy.pi)
+    plt.plot(rocket.log_t,rocket.log_euler[1] * 180 / numpy.pi)
     #plt.plot(rocket.log_r[0][:],rocket.log_euler[0] * 180 / numpy.pi)
 
     plt.show()

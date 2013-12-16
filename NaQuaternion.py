@@ -117,19 +117,19 @@ class Quaternion():
 
 
     def dq_dt(self, Ox, Oy, Oz):
-        #quat = numpy.array(self.quat,dtype = "float_")
-        #dq = numpy.zeros((4,1))
-        #dq[0,0] = -0.5 * (quat[1] * Ox + quat[2] * Oy + quat[3] * Oz)
-        #dq[1,0] =  0.5 * (quat[0] * Ox - quat[3] * Oy + quat[2] * Oz)
-        #dq[2,0] =  0.5 * (quat[3] * Ox + quat[0] * Oy - quat[1] * Oz)
-        #dq[3,0] = -0.5 * (quat[2] * Ox - quat[1] * Oy - quat[0] * Oz)
-        #norm = numpy.sqrt(dq[0,0] * dq[0,0] + dq[1,0] * dq[1,0] + dq[2,0] * dq[2,0] + dq[3,0] * dq[3,0])
-        #dq /= norm
-        #return numpy.ndarray.tolist(dq)
-        omega_quat = Quaternion([[0],[Ox],[Oy],[Oz]])
-        dq = numpy.array(self * omega_quat,dtype = "float_") / 2
-
+        quat = numpy.array(self.quat,dtype = "float_")
+        dq = numpy.zeros((4,1))
+        dq[0,0] = -0.5 * (quat[1] * Ox + quat[2] * Oy + quat[3] * Oz)
+        dq[1,0] =  0.5 * (quat[0] * Ox - quat[3] * Oy + quat[2] * Oz)
+        dq[2,0] =  0.5 * (quat[3] * Ox + quat[0] * Oy - quat[1] * Oz)
+        dq[3,0] = -0.5 * (quat[2] * Ox - quat[1] * Oy - quat[0] * Oz)
+        norm = numpy.sqrt(dq[0,0] * dq[0,0] + dq[1,0] * dq[1,0] + dq[2,0] * dq[2,0] + dq[3,0] * dq[3,0])
+        dq /= norm
         return numpy.ndarray.tolist(dq)
+        #omega_quat = Quaternion([[0],[Ox],[Oy],[Oz]])
+        #dq = numpy.array(self * omega_quat,dtype = "float_") / 2
+
+        #return numpy.ndarray.tolist(dq)
 
     def quat2dcm(self):
         dcm = numpy.zeros((3,3),dtype = "float_")
