@@ -92,7 +92,7 @@ class Quaternion():
 
     def norm(self):
         quat = numpy.array(self.quat,dtype = "float_")
-        return math.sqrt(quat[0] * quat[0]  + quat[1] * quat[1] + quat[2] * quat[2] + quat[3] * quat[3])
+        return numpy.sqrt(quat[0,0] ** 2  + quat[1,0] ** 2 + quat[2,0] ** 2 + quat[3,0] ** 2)
 
     def inverse(self):
         norm = self.norm()
@@ -107,6 +107,8 @@ class Quaternion():
         quat = numpy.array(self.quat,dtype = "float_")
         self.quat = numpy.ndarray.tolist(quat / norm )
 
+
+
     def rot2quat(self,theta,x,y,z):
         self.quat[0][0] =     numpy.cos(theta / 2)
         self.quat[1][0] = x * numpy.sin(theta / 2)
@@ -117,14 +119,15 @@ class Quaternion():
 
 
     def dq_dt(self, Ox, Oy, Oz):
+        self.normalize()
         quat = numpy.array(self.quat,dtype = "float_")
-        dq = numpy.zeros((4,1))
+        dq = numpy.zeros((4,1),dtype = "float_")
         dq[0,0] = -0.5 * (quat[1] * Ox + quat[2] * Oy + quat[3] * Oz)
         dq[1,0] =  0.5 * (quat[0] * Ox - quat[3] * Oy + quat[2] * Oz)
         dq[2,0] =  0.5 * (quat[3] * Ox + quat[0] * Oy - quat[1] * Oz)
         dq[3,0] = -0.5 * (quat[2] * Ox - quat[1] * Oy - quat[0] * Oz)
-        norm = numpy.sqrt(dq[0,0] * dq[0,0] + dq[1,0] * dq[1,0] + dq[2,0] * dq[2,0] + dq[3,0] * dq[3,0])
-        dq /= norm
+        norm = numpy.sqrt(dq[0,0] ** 2 + dq[1,0] ** 2 + dq[2,0] ** 2 + dq[3,0] ** 2)
+        dq = dq / norm
         return numpy.ndarray.tolist(dq)
         #omega_quat = Quaternion([[0],[Ox],[Oy],[Oz]])
         #dq = numpy.array(self * omega_quat,dtype = "float_") / 2
@@ -147,10 +150,10 @@ class Quaternion():
 
     def quat2euler(self):
         quat = numpy.array(self.quat,dtype = "float_")
-        phi = numpy.arctan((2 * (quat[0] * quat[1] + quat[2] * quat[3] )) / (1 - 2 * (quat[1] ** 2 + quat[2] ** 2)))
-        theta = numpy.arcsin(2 * (quat[0] * quat[2] - quat[3] * quat[1]))
-        psi = numpy.arctan((2 * (quat[0] * quat[3] + quat[1] * quat[2] )) / (1 - 2 * (quat[2] ** 2 + quat[3] ** 2)))
-        return numpy.ndarray.tolist(numpy.array([phi,theta,psi]))
+        phi = numpy.arctan((2 * (quat[0,0] * quat[1,0] + quat[2,0] * quat[3,0] )) / (1 - 2 * (quat[1,0] ** 2 + quat[2,0] ** 2)))
+        theta = numpy.arcsin(2 * (quat[0,0] * quat[2,0] - quat[3,0] * quat[1,0]))
+        psi = numpy.arctan((2 * (quat[0,0] * quat[3,0] + quat[1,0] * quat[2,0] )) / (1 - 2 * (quat[2,0] ** 2 + quat[3,0] ** 2)))
+        return numpy.ndarray.tolist(numpy.array([[phi],[theta],[psi]]))
 
 def main():
     pass
