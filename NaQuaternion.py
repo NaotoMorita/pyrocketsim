@@ -127,7 +127,8 @@ class Quaternion():
         dq[2,0] =  0.5 * (quat[3] * Ox + quat[0] * Oy - quat[1] * Oz)
         dq[3,0] = -0.5 * (quat[2] * Ox - quat[1] * Oy - quat[0] * Oz)
         norm = numpy.sqrt(dq[0,0] ** 2 + dq[1,0] ** 2 + dq[2,0] ** 2 + dq[3,0] ** 2)
-        dq = dq / norm
+        if norm != 0:
+            dq = dq / norm
         return numpy.ndarray.tolist(dq)
         #omega_quat = Quaternion([[0],[Ox],[Oy],[Oz]])
         #dq = numpy.array(self * omega_quat,dtype = "float_") / 2
@@ -137,15 +138,15 @@ class Quaternion():
     def quat2dcm(self):
         dcm = numpy.zeros((3,3),dtype = "float_")
         quat = numpy.array(self.quat,dtype = "float_")
-        dcm[0,0] =  float(quat[0] ** 2 + quat[1] ** 2 - quat[2] ** 2 - quat[3] ** 2)
-        dcm[0,1] = 2.0 * (quat[1] * quat[2] - quat[0] * quat[3])
-        dcm[0,2] = 2.0 * (quat[0] * quat[2] - quat[1] * quat[3])
-        dcm[1,0] = 2.0 * (quat[1] * quat[2] + quat[0] * quat[3])
-        dcm[1,1] =  float(quat[0] ** 2 - quat[1] ** 2 + quat[2] ** 2 - quat[3] ** 2)
-        dcm[1,2] = 2.0 * (quat[2] * quat[3] - quat[0] * quat[1])
-        dcm[2,0] = 2.0 * (quat[1] * quat[3] - quat[0] * quat[2])
-        dcm[2,1] = 2.0 * (quat[0] * quat[1] + quat[2] * quat[3])
-        dcm[2,2] =  float(quat[0] ** 2 - quat[1] ** 2 - quat[2] ** 2 + quat[3] ** 2)
+        dcm[0,0] =       (quat[0,0] ** 2 + quat[1,0] ** 2 - quat[2,0] ** 2 - quat[3,0] ** 2)
+        dcm[0,1] = 2.0 * (quat[1,0] * quat[2,0] - quat[0,0] * quat[3,0])
+        dcm[0,2] = 2.0 * (quat[0,0] * quat[2,0] + quat[1,0] * quat[3,0])
+        dcm[1,0] = 2.0 * (quat[1,0] * quat[2,0] + quat[0,0] * quat[3,0])
+        dcm[1,1] =       (quat[0,0] ** 2 - quat[1,0] ** 2 + quat[2,0] ** 2 - quat[3,0] ** 2)
+        dcm[1,2] = 2.0 * (quat[2,0] * quat[3,0] - quat[0,0] * quat[1,0])
+        dcm[2,0] = 2.0 * (quat[1,0] * quat[3,0] - quat[0,0] * quat[2,0])
+        dcm[2,1] = 2.0 * (quat[0,0] * quat[1,0] + quat[2,0] * quat[3,0])
+        dcm[2,2] =  float(quat[0,0] ** 2 - quat[1,0] ** 2 - quat[2,0] ** 2 + quat[3,0] ** 2)
         return numpy.ndarray.tolist(dcm)
 
     def quat2euler(self):

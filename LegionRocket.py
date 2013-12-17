@@ -24,7 +24,7 @@ class Rocket():
         self.dt = 0.003
         self.i = 1
         #速度系初期化
-        self.vel_b = [[0.01],[0.01],[0.01]]
+        self.vel_b = [[0.0],[0.0],[0.0]]
         self.vel_i = [[0.0],[0.0],[0.0]]
         self.vel_v = [[0.0],[0.0],[0.0]]
 
@@ -33,10 +33,12 @@ class Rocket():
 
         #飛行姿勢初期化
         self.quaternion_b2i = Quaternion()
-        self.quaternion_b2i.rot2quat(100 * numpy.pi /180, 0, 1, 0)
+        self.quaternion_b2i.rot2quat(88 * numpy.pi /180, 0, 1, 0)
+        self.quaternion_b2i.normalize()
         self.dcm_b2i = self.quaternion_b2i.quat2dcm()
         self.quaternion_i2b = Quaternion(self.quaternion_b2i.inverse())
         self.dcm_i2b = self.quaternion_i2b.quat2dcm()
+
 
         #速度座標への変換行列初期化
         self.dcm_b2v = numpy.zeros((3,3),dtype = "float_")
@@ -67,6 +69,7 @@ class Rocket():
 
         #減衰係数
         self.K = [[0.01],[0.07],[0.07]]
+        self.Ko = 3.1
 
         #ロガー初期化
         self.log_r     = [[],[],[]]
@@ -115,26 +118,41 @@ class Rocket():
         #リストからnumpy_ndarrayに変換
         vel_b = numpy.array(self.vel_b, dtype = "float_")
 
-        xd =  vel_b / numpy.sqrt(vel_b[0] ** 2 + vel_b[1] ** 2 + vel_b[2] ** 2)
-        xd.shape = 3,1
+        if vel_b[0] != 0:
+            xd =  vel_b / numpy.sqrt(vel_b[0] ** 2 + vel_b[1] ** 2 + vel_b[2] ** 2)
+            yd =  numpy.cross((xd+numpy.array([[0],[0],[10.0]])).T,xd.T).T
+            yd /= numpy.sqrt(yd[0,0] ** 2 + yd[1,0] ** 2 + yd[2,0] ** 2)
+            yd = yd - numpy.dot(yd.T,xd) * xd
 
+            zd = numpy.cross(xd.T,yd.T).T
 
-        yd =  numpy.cross((xd+numpy.array([[0],[0],[10.0]])).T,xd.T).T
-        yd /= numpy.sqrt(yd[0,0] ** 2 + yd[1,0] ** 2 + yd[2,0] ** 2)
-        #yd = yd - numpy.dot(yd.T,xd) * xd
-
-        zd = numpy.cross(xd.T,yd.T).T
-
-        dcm_v2b = numpy.hstack([xd,yd,zd])
-        dcm_b2v = numpy.linalg.inv(dcm_v2b)
-        self.dcm_v2b = numpy.ndarray.tolist(dcm_v2b)
-        self.dcm_b2v = numpy.ndarray.tolist(dcm_b2v)
+            dcm_v2b = numpy.hstack([xd,yd,zd])
+            dcm_b2v = numpy.linalg.inv(dcm_v2b)
+            self.dcm_v2b = numpy.ndarray.tolist(dcm_v2b)
+            self.dcm_b2v = numpy.ndarray.tolist(dcm_b2v)
+        else:
+            dcm_v2b = numpy.identity(3)
+            dcm_b2v = numpy.identity(3)
+            self.dcm_v2b = numpy.ndarray.tolist(dcm_v2b)
+            self.dcm_b2v = numpy.ndarray.tolist(dcm_b2v)
 
 
         #逆進しても力の働く方向は同じであることに注意
 ##        if self.i == 1:
-        self.alpha = numpy.arcsin(vel_b[2,0] / numpy.sqrt(vel_b[0,0] ** 2 + vel_b[1,0] ** 2 + vel_b[2,0] ** 2))# * abs(vel_b[2,0]) / vel_b[2,0]
-        self.beta  = numpy.arctan(vel_b[1,0] / vel_b[0,0]) #* abs(vel_b[1,0]) / vel_b[1,0]
+        if numpy.sqrt(vel_b[0,0] ** 2 + vel_b[1,0] ** 2 + vel_b[2,0] ** 2) != 0:
+            self.alpha = numpy.arcsin(vel_b[2,0] / numpy.sqrt(vel_b[0,0] ** 2 + vel_b[1,0] ** 2 + vel_b[2,0] ** 2))
+        else:
+            self.alpha = 0
+        if vel_b[0,0] != 0:
+            self.beta  = numpy.arctan(vel_b[1,0] / vel_b[0,0])
+        else:
+            self.beta = 0
+
+        #迎え角の急激な変化による相対迎え角を定義
+##        if self.i != 1:
+##            self.alpha -= self.Ko * self.rocketlength * (self.alpha - self.log_alpha[-1])
+##            self.beta -= self.Ko * self.rocketlength * (self.beta - self.log_beta[-1])
+
 ##        else:
 ##            self.alpha = (numpy.arcsin(vel_b[2,0] / numpy.sqrt(vel_b[0,0] ** 2 + vel_b[1,0] ** 2 + vel_b[2,0] ** 2)) + self.log_alpha[-1]) / 2
 ##            self.beta  = (numpy.arctan(vel_b[1,0] / vel_b[0,0]) + self.log_beta[-1]) / 2
@@ -152,14 +170,14 @@ class Rocket():
     def calc_CL(self):
         #http://repository.dl.itc.u-tokyo.ac.jp/dspace/bitstream/2261/30502/1/sk009003011.pdf より
         #失速を考慮すること　過大なCLは高迎え角時推力となってしまう
-        CLaoa = 0.1 #[/rad]
+        CLaoa = 0.3 #[/rad]
         #if abs(self.alpha) <= 40:
-        self.CL[2] = CLaoa * self.alpha
+        self.CL[2] = CLaoa * abs(self.alpha)
         #else:
             #self.CL[2] = (- 0.01 * CLaoa * (abs(self.alpha) - 40) + CLaoa * 40)
 
         #if abs(self.beta) <= 40:
-        self.CL[1] = CLaoa * self.beta
+        self.CL[1] = CLaoa * abs(self.beta)
         #else:
             #self.CL[1] = (- 0.01 * CLaoa * (abs(self.beta) - 40) + CLaoa * 40)
         self.CL[0] = 0.0
@@ -196,11 +214,21 @@ class Rocket():
 
         #全ての座標系での揚力、抗力、モーメントを求める
         lift_v = numpy.array(self.lift_v)
-        lift_v[2] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[2] #* abs(vel_b[2]) / vel_b[2]
-        lift_v[1] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[1] #* abs(vel_b[1]) / vel_b[1]
-        lift_v[0] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[0] #* abs(vel_b[0]) / vel_b[0]
-        self.lift_v = numpy.ndarray.tolist(lift_v)
+        if vel_b[2] != 0.0:
+            lift_v[2] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[2] * abs(vel_b[2]) / vel_b[2]
+        else:
+            lift_v[2] = 0.0
 
+        if vel_b[1] != 0.0:
+            lift_v[1] = -1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[1] * abs(vel_b[1]) / vel_b[1]
+        else:
+            lift_v[1] = 0.0
+
+        lift_v[0] = 1 / 2 * rho * vel_v[0] ** 2 * self.sidesurface * self.CL[0] * abs(vel_b[0]) / vel_b[0]
+        if vel_b[0] != 0.0:
+            self.lift_v = numpy.ndarray.tolist(lift_v)
+        else:
+            lift_v[0] = 0.0
 
         lift_b = numpy.array(self.lift_b)
         lift_b = numpy.dot(dcm_v2b,lift_v)
@@ -220,9 +248,10 @@ class Rocket():
         drag_b = numpy.array(self.drag_b)
         drag_b = numpy.dot(dcm_v2b,drag_v)
 
-        drag_b[2] -= 1 / 2 * rho * vel_b[2] ** 2 * self.sidesurface * 0.5 * abs(vel_b[2]) / vel_b[2]
-        drag_b[1] -= 1 / 2 * rho * vel_b[1] ** 2 * self.sidesurface * 0.5 * abs(vel_b[1]) / vel_b[1]
-        drag_b[0] -= 1 / 2 * rho * vel_b[0] ** 2 * self.frontsurface * 1.0 * abs(vel_b[0]) / vel_b[0]
+        drag_b[2] -= 0#1 / 2 * rho * vel_b[2] ** 2 * self.sidesurface * 0.5 * abs(vel_b[2]) / vel_b[2]
+        drag_b[1] -= 0#1 / 2 * rho * vel_b[1] ** 2 * self.sidesurface * 0.5 * abs(vel_b[1]) / vel_b[1]
+        if vel_b[0] != 0:
+            drag_b[0] -= 1 / 2 * rho * vel_b[0] ** 2 * self.frontsurface * 1.0 * abs(vel_b[0]) / vel_b[0]
 
         self.drag_b = numpy.ndarray.tolist(drag_b)
 
@@ -265,7 +294,10 @@ class Rocket():
         vel_b = numpy.array(self.vel_b, dtype = "float_")
         r_i = numpy.array(self.r_i, dtype = "float_")
 
-        forces_i = self.mass * numpy.array([[0.0],[0.0],[9.8]],dtype = "float_") + thrust_i# + lift_i + drag_i
+        forces_i = self.mass * numpy.array([[0.0],[0.0],[9.8]],dtype = "float_") + thrust_i + lift_i + drag_i
+        print(forces_i)
+        print(self.beta)
+        print("---ここまで")
         #     + lift_i + drag_i
         self.force_i = numpy.ndarray.tolist(forces_i)
 
@@ -277,7 +309,7 @@ class Rocket():
         K = numpy.array(self.K)
 
         if self.i == 1:
-            vel_i += forces_i / self.mass * self.dt
+            vel_i += (forces_i) / self.mass * self.dt
             r_i   += vel_i * self.dt
 
             self.vel_i = numpy.ndarray.tolist(vel_i)
@@ -302,7 +334,7 @@ class Rocket():
 
 
         elif self.i == 2 or self.i == 3:
-            vel_i += (forces_i / self.mass + numpy.array(self.integ_forces_i[-1])) / 2 * self.dt
+            vel_i += ((forces_i) / self.mass + numpy.array(self.integ_forces_i[-1])) / 2 * self.dt
             r_i   += (vel_i + self.vel_i[-1]) / 2 * self.dt
 
             self.vel_i = numpy.ndarray.tolist(vel_i)
@@ -328,7 +360,7 @@ class Rocket():
             self.integ_vel_i.append(self.vel_i)
 
         else:
-            vel_i += quad_quad_kari(self,forces_i / self.mass, self.integ_forces_i)
+            vel_i += quad_quad_kari(self,(forces_i) / self.mass, self.integ_forces_i)
             r_i   += quad_quad_kari(self,vel_i,self.integ_vel_i)
 
             self.vel_i = numpy.ndarray.tolist(vel_i)
@@ -370,8 +402,9 @@ class Rocket():
 
         r_i = numpy.array(self.r_i,dtype = "float_")
 
-
         vel_b = numpy.dot(numpy.array(self.dcm_i2b),vel_i - wind)
+        if self.i != 1:
+            vel_b -= self.Ko * (vel_b - numpy.array(self.log_vel_b[-1][:]))
         self.vel_b = numpy.ndarray.tolist(vel_b)
         self.quaternion_b2i.normalize()
         self.quaternion_i2b.normalize()
@@ -409,22 +442,24 @@ def main():
 
     print(rocket.t)
     print(rocket.log_r)
-    plt.plot(rocket.log_r[0][:],rocket.log_r[1][:])
-    plt.hold(True)
+    #plt.plot(rocket.log_r[0][:],-rocket.log_r[2][:])
 
-    plt.axis("equal")
-    #plt.plot(rocket.log_t,rocket.log_vel_b[2][:],"o")
+    plt.hold(True)
+    #plt.plot(rocket.log_r[0][:],rocket.log_r[1][:])
+    #plt.axis("equal")
+    #plt.plot(rocket.log_t,rocket.log_vel_b[1][:])
     #plt.plot(rocket.log_t,rocket.log_vel_b[0][:],"o")
     #plt.plot(rocket.log_r[0][:],rocket.log_t)
     #plt.plot(rocket.log_t,rocket.log_lift_i[0][:] * 1000)
-    #plt.plot(rocket.log_t,rocket.log_alpha * 180/ numpy.pi)
+    plt.plot(rocket.log_t,rocket.log_alpha * 180/ numpy.pi)
+    plt.plot(rocket.log_t,rocket.log_beta * 180/ numpy.pi)
     #plt.plot(rocket.log_t,rocket.log_lift_i[2][:] * 10)
     #plt.plot(rocket.log_t,rocket.log_quat[0][:])
     #plt.plot(rocket.log_t,rocket.log_quat[1][:])
     #plt.plot(rocket.log_t,rocket.log_quat[2][:])
     #plt.plot(rocket.log_t,rocket.log_quat[3][:])
     #plt.plot(rocket.log_t,rocket.log_euler[0] * 180/ numpy.pi)
-    #plt.plot(rocket.log_t,rocket.log_euler[1] * 180/ numpy.pi)
+    plt.plot(rocket.log_t,rocket.log_euler[1] * 180/ numpy.pi)
     #plt.plot(rocket.log_t,rocket.log_euler[2] * 180/ numpy.pi)
     plt.show()
 
