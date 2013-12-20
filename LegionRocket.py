@@ -12,6 +12,8 @@
 import numpy
 from NaQuaternion import Quaternion
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 
 class Legion():
     def __init__(self):
@@ -21,7 +23,7 @@ class Rocket():
     def __init__(self):
         #時間初期化
         self.t = 0
-        self.dt = 0.0002
+        self.dt = 0.002
         self.i = 1
         #速度系初期化
         self.vel_b = [[0.0],[0.0],[0.0]]
@@ -65,7 +67,7 @@ class Rocket():
         self.gyro = [[0.0],[0.0],[0.0]]
 
         #風
-        self.wind = [[0.0],[0.0],[0.0]]
+        self.wind = [[0.0],[2.0],[0.0]]
 
         #減衰係数
         self.K = [[0.1],[0.1],[0.1]]
@@ -79,7 +81,7 @@ class Rocket():
         self.log_euler = [[],[],[]]
         self.log_force_i = [[],[],[]]
         self.log_lift_i = [[],[],[]]
-        self.log_quat = [[],[],[],[]]
+        self.log_quat = []
 
         self.log_t = []
         self.log_alpha = []
@@ -193,8 +195,12 @@ class Rocket():
     def rocket_force_morment(self):
         #推力カーブを読み込んで推力をリターン
         def thrust(t):
-            thrustcurve = numpy.loadtxt("Quest_A8.eng",comments = ";",delimiter = " ")
-            return numpy.interp(t,thrustcurve[:,0],thrustcurve[:,1])
+            #thrustcurve = numpy.loadtxt("Quest_A8.eng",comments = ";",delimiter = " ")
+            #return numpy.interp(t,thrustcurve[:,0],thrustcurve[:,1])
+            if t <= 0.1:
+                return 10 / 0.1 * self.t
+            else:
+                return 10 * numpy.exp(-100*(t-0.1))
 
 
         #使用する変数をndarray化
@@ -291,7 +297,7 @@ class Rocket():
         r_i = numpy.array(self.r_i, dtype = "float_")
 
         forces_i = self.mass * numpy.array([[0.0],[0.0],[9.8]],dtype = "float_") + thrust_i + lift_i + drag_i
-        #     + lift_i + drag_i
+
         self.force_i = numpy.ndarray.tolist(forces_i)
 
         inatia   = numpy.array(self.inatia)
@@ -396,7 +402,7 @@ class Rocket():
         r_i = numpy.array(self.r_i,dtype = "float_")
 
 
-        vel_b = numpy.dot(numpy.array(self.dcm_i2b),vel_i - wind)
+        vel_b = numpy.dot(numpy.array(self.dcm_i2b),vel_i + wind)
         #vel_b -= self.Ko * (vel_b - numpy.array(self.vel_b,dtype = "float_"))
         self.vel_b = numpy.ndarray.tolist(vel_b)
         self.quaternion_b2i.normalize()
@@ -412,12 +418,43 @@ class Rocket():
         self.log_t = numpy.hstack((self.log_t,self.t))
         self.log_alpha = numpy.hstack((self.log_alpha,self.alpha))
         self.log_beta = numpy.hstack((self.log_beta,self.beta))
-        self.log_quat = numpy.hstack((self.log_quat,self.quaternion_b2i.quat))
+        self.log_quat.append(self.quaternion_b2i.quat)
+
+class Rocket_Graphic():
+    def __init__(self):
+        self.step = 50
+
+
+    def matplotlib_3d(self,rocket):
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        ax.set_aspect("box")
+
+        plt.hold(True)
+
+
+        bodyline_vector = numpy.array([[1.0],[0.0],[0.0]],dtype = "float_")
+        quat_bodyline = Quaternion()
+        for i_fig in range(0,rocket.i-1,self.step):
+            fig_list = [[rocket.log_r[0,i_fig]],[rocket.log_r[1,i_fig]],[-rocket.log_r[2,i_fig]]]
+            ax.scatter3D(fig_list[0],fig_list[1],fig_list[2])
+
+            quat_bodyline.__init__(rocket.log_quat[i_fig][:])
+            dcm_bodyline = numpy.array(quat_bodyline.quat2dcm())
+            bodyline = numpy.dot(dcm_bodyline,bodyline_vector)
+            r_vec = numpy.array([[rocket.log_r[0][i_fig]],[rocket.log_r[1][i_fig]],[rocket.log_r[2][i_fig]]])
+            bodyline_rear = (- bodyline + r_vec)
+            fig_list_bodyline = numpy.hstack([r_vec,bodyline_rear])
+
+            ax.plot3D(fig_list_bodyline[0],fig_list_bodyline[1],-fig_list_bodyline[2])
+
+        plt.show()
 
 
 def main():
 
     rocket = Rocket()
+    rocket_graphic = Rocket_Graphic()
     while -rocket.r_i[2][0] >= -5.0:
         rocket.calcaoa_velocityaxis()
         rocket.calc_CL()
@@ -432,10 +469,6 @@ def main():
         if 1.0 != round(numpy.sqrt(rocket.quaternion_b2i.quat[0][0] ** 2 + rocket.quaternion_b2i.quat[1][0] ** 2 + rocket.quaternion_b2i.quat[2][0] ** 2 + rocket.quaternion_b2i.quat[3][0] ** 2),4):
             print(rocket.i)
 
-
-
-    print(rocket.t)
-    print(rocket.log_r)
     plt.plot(rocket.log_r[0][:],-rocket.log_r[2][:])
 
     plt.hold(True)
@@ -457,6 +490,14 @@ def main():
     plt.plot(rocket.log_t,rocket.log_euler[1] * 180/ numpy.pi)
     plt.plot(rocket.log_t,rocket.log_euler[2] * 180/ numpy.pi)
     plt.show()
+
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.plot(rocket.log_r[0][:],rocket.log_r[1][:],-rocket.log_r[2][:])
+    plt.axis("equal")
+    plt.show()
+
+    rocket_graphic.matplotlib_3d(rocket)
 
 
 
