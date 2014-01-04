@@ -485,6 +485,9 @@ class Rocket():
 
 
         read_csv(self)
+        azimth_deg_init = -10;
+        elevation_deg_init = -90.1;
+        roll_deg_init = 0;
         #初期クオータニオンを定義
         self.quaternion_b2i.rot2quat(100 * numpy.pi /180, 0, 1, 0)
 
