@@ -9,10 +9,50 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 
-import numpy
+import numpy, sys, os, random, copy
 from NaQuaternion import Quaternion
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+
+import matplotlib.backends.backend_qt4agg
+import matplotlib.backends.backend_agg
+
+from PyQt4 import QtGui, QtCore
+
+class Dataplot(matplotlib.backends.backend_qt4agg.FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=6, height=3, dpi=50):
+        fig = matplotlib.figure.Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        self.axes.tick_params(axis='both', which='major', labelsize=10)
+        self.axes.hold(False)
+
+        matplotlib.backends.backend_qt4agg.FigureCanvasQTAgg.__init__(self, fig)
+        self.setParent(parent)
+
+        matplotlib.backends.backend_qt4agg.FigureCanvasQTAgg.setSizePolicy(self,QtGui.QSizePolicy.Expanding,QtGui.QSizePolicy.Expanding)
+        matplotlib.backends.backend_qt4agg.FigureCanvasQTAgg.updateGeometry(self)
+
+    def drowplot(self,x,y):
+        if not isinstance(x,list) or not isinstance(y,list):
+            print("not list")
+        else:
+            self.axes.plot(x,y)
+            self.draw()
+
+class ResultTabWidget(QtGui.QTabWidget):
+    def __init__(self, parent = None):
+        QtGui.QTabWidget.__init__(self, parent = parent)
+
+        self.track_graph = Dataplot()
+        self.track_t_graph = Dataplot()
+        self.attitude_t_graph = Dataplot()
+
+
+        self.addTab(self.track_graph,"軌跡")
+        self.addTab(self.track_t_graph,"経路時間履歴")
+        self.addTab(self.attitude_t_graph,"姿勢時間履歴")
+        self.addTab(self.attitude_t_graph,"速度時間履歴")
+        self.addTab(self.attitude_t_graph,"迎角・推力時間履歴")
 
 
 class Legion():
@@ -35,7 +75,7 @@ class Rocket():
 
         #飛行姿勢初期化
         self.quaternion_b2i = Quaternion()
-        self.quaternion_b2i.rot2quat(80 * numpy.pi /180, 0, 1, 0)
+        self.quaternion_b2i.rot2quat(88 * numpy.pi /180, 0, 1, 0)
         self.quaternion_b2i.normalize()
         self.dcm_b2i = self.quaternion_b2i.quat2dcm()
         self.quaternion_i2b = Quaternion(self.quaternion_b2i.inverse())
@@ -67,7 +107,7 @@ class Rocket():
         self.gyro = [[0.0],[0.0],[0.0]]
 
         #風
-        self.wind = [[0.0],[2.0],[0.0]]
+        self.wind = [[0.0],[0.0],[0.0]]
 
         #減衰係数
         self.K = [[0.1],[0.1],[0.1]]
@@ -86,6 +126,9 @@ class Rocket():
         self.log_t = []
         self.log_alpha = []
         self.log_beta = []
+
+        #ランチャー長さ
+        self.louncher = 3.0
 
 
         #積分用ログ初期化
@@ -168,16 +211,16 @@ class Rocket():
     def calc_CL(self):
         #http://repository.dl.itc.u-tokyo.ac.jp/dspace/bitstream/2261/30502/1/sk009003011.pdf より
         #失速を考慮すること　過大なCLは高迎え角時推力となってしまう
-        CLaoa = 0.3 #[/rad]
-        #if abs(self.alpha) <= 40:
-        self.CL[2] = CLaoa * abs(self.alpha)
-        #else:
-            #self.CL[2] = (- 0.01 * CLaoa * (abs(self.alpha) - 40) + CLaoa * 40)
+        CLaoa = 0.5 #[/rad]
+        if abs(self.alpha) <= 40:
+            self.CL[2] = CLaoa * abs(self.alpha)
+        else:
+            self.CL[2] = (- 0.01 * CLaoa * (abs(self.alpha) - 40) + CLaoa * 40)
 
-        #if abs(self.beta) <= 40:
-        self.CL[1] = CLaoa * abs(self.beta)
-        #else:
-            #self.CL[1] = (- 0.01 * CLaoa * (abs(self.beta) - 40) + CLaoa * 40)
+        if abs(self.beta) <= 40:
+            self.CL[1] = CLaoa * abs(self.beta)
+        else:
+            self.CL[1] = (- 0.01 * CLaoa * (abs(self.beta) - 40) + CLaoa * 40)
         self.CL[0] = 0.0
 
     def calc_Cd(self):
@@ -192,15 +235,11 @@ class Rocket():
 
 
 
-    def rocket_force_morment(self):
+    def simulate_force_moment(self):
         #推力カーブを読み込んで推力をリターン
         def thrust(t):
-            #thrustcurve = numpy.loadtxt("Quest_A8.eng",comments = ";",delimiter = " ")
-            #return numpy.interp(t,thrustcurve[:,0],thrustcurve[:,1])
-            if t <= 0.1:
-                return 10 / 0.1 * self.t
-            else:
-                return 10 * numpy.exp(-100*(t-0.1))
+            thrustcurve = numpy.loadtxt("Quest_A8.eng",comments = ";",delimiter = " ")
+            return numpy.interp(t,thrustcurve[:,0],thrustcurve[:,1])
 
 
         #使用する変数をndarray化
@@ -279,7 +318,8 @@ class Rocket():
         self.thrust_i = numpy.ndarray.tolist(thrust_i)
         self.thrust_b = numpy.ndarray.tolist(thrust_b)
 
-    def integrate(self,t_start = 0):
+
+    def simulate_integrate(self,t_start = 0):
         def quad_quad_kari(self,fourth,integ):
             fourth = numpy.array(fourth,dtype = "float_")
             integ = numpy.array(integ,dtype = "float_")
@@ -294,9 +334,17 @@ class Rocket():
         thrust_i = numpy.array(self.thrust_i, dtype = "float_")
         vel_i = numpy.array(self.vel_i, dtype = "float_")
         vel_b = numpy.array(self.vel_b, dtype = "float_")
+        dcm_b2i = numpy.array(self.dcm_b2i, dtype = "float_")
+        dcm_i2b = numpy.array(self.dcm_i2b, dtype = "float_")
         r_i = numpy.array(self.r_i, dtype = "float_")
 
         forces_i = self.mass * numpy.array([[0.0],[0.0],[9.8]],dtype = "float_") + thrust_i + lift_i + drag_i
+        if numpy.sqrt(r_i[0] ** 2 + r_i[1] ** 2 + r_i[2] ** 2) <= self.louncher :
+            print(self.i)
+            force_b = numpy.dot(dcm_i2b,forces_i)
+            force_b[1] = 0.0
+            force_b[2] = 0.0
+            forces_i = numpy.dot(dcm_b2i,force_b)
 
         self.force_i = numpy.ndarray.tolist(forces_i)
 
@@ -408,6 +456,93 @@ class Rocket():
         self.quaternion_b2i.normalize()
         self.quaternion_i2b.normalize()
 
+
+    def sensing_integrate(self):
+        def read_csv(self):
+            csv_name = "CanSatApage2.csv"
+            csvall = numpy.loadtxt(csv_name,delimiter = ",", skiprows = 1)
+            acc_scale = 2048.0
+            acc_mean = numpy.array([32768,32768,32768])
+            gyro_scale = 16.4
+            gyro_mean = numpy.array([32755,32783,32769])
+
+            self.senser_t = csvall[:,1]
+            self.csv_acc = csvall[:,2:5] - acc_mean
+            self.csv_gyro = csvall[:,5:8] -gyro_mean
+            self.csv_acc /= (acc_scale)
+            self.csv_acc *= 9.8
+            self.csv_gyro /= (gyro_scale)
+
+            self.acc_x = self.csv_acc[:,0]
+            self.acc_y = self.csv_acc[:,1]
+            self.acc_z = self.csv_acc[:,2]
+
+            self.gyro_x = self.csv_gyro[:,0]
+            self.gyro_y = self.csv_gyro[:,1]
+            self.gyro_z = self.csv_gyro[:,2]
+
+
+
+
+        read_csv(self)
+        #初期クオータニオンを定義
+        self.quaternion_b2i.rot2quat(100 * numpy.pi /180, 0, 1, 0)
+
+        #初期dcmを計算
+        self.quaternion_b2i.normalize()
+        self.dcm_b2i = self.quaternion_b2i.quat2dcm()
+        self.quaternion_i2b.normalize()
+        self.dcm_i2b = self.quaternion_i2b.quat2dcm()
+        print(numpy.shape(self.senser_t)[0])
+
+        #積分を実行
+        #台形積分補助
+        acc_b = numpy.array([[self.acc_x[0]],[self.acc_y[0]],[self.acc_z[0]]])
+        sub_acc_i = numpy.dot(self.dcm_b2i,acc_b)
+        sub_acc_i += numpy.array([[-9.8],[0],[0]])
+        gyro_b = numpy.array([[self.gyro_x[0]],[self.gyro_y[0]],[self.gyro_z[0]]])
+        sub_dq_dt = numpy.array(self.quaternion_b2i.dq_dt(gyro_b[0,0],gyro_b[1,0],gyro_b[2,0]))
+
+
+
+        vel_i = numpy.zeros([3,1])
+        r_i = numpy.zeros([3,1])
+        for i_senser in range(1,numpy.shape(self.senser_t)[0]):
+            #加速度を慣性座標系へ
+            acc_b = numpy.array([[self.acc_x[i_senser]],[self.acc_y[i_senser]],[self.acc_z[i_senser]]])
+            acc_i = numpy.dot(self.dcm_b2i,acc_b)
+            acc_i += numpy.array([[-9.8],[0],[0]])
+
+            #速度へ
+            vel_i += (acc_i + sub_acc_i) / 2 * (self.senser_t[i_senser] - self.senser_t[i_senser - 1])
+
+            sub_acc_i = acc_i
+
+            #座標へ
+            if i_senser == 1:
+                r_i += vel_i * (self.senser_t[i_senser] - self.senser_t[i_senser - 1])
+            else:
+                r_i += (vel_i + sub_vel_i) / 2 * (self.senser_t[i_senser] - self.senser_t[i_senser - 1])
+            sub_vel_i = vel_i
+            print(r_i)
+
+            #quaternion更新
+            gyro_b = numpy.array([[self.gyro_x[i_senser]],[self.gyro_y[i_senser]],[self.gyro_z[i_senser]]])
+            dq_dt = numpy.array(self.quaternion_b2i.dq_dt(gyro_b[0,0],gyro_b[1,0],gyro_b[2,0]))
+            new_quat = numpy.array(self.quaternion_b2i.quat) +(dq_dt + sub_dq_dt) / 2 * (self.senser_t[i_senser] - self.senser_t[i_senser - 1])
+            self.quaternion_b2i.quat = numpy.ndarray.tolist(new_quat)
+            self.quaternion_b2i.normalize()
+            self.dcm_b2i = self.quaternion_b2i.quat2dcm()
+
+            self.quaternion_i2b.quat = self.quaternion_b2i.inverse()
+            self.quaternion_i2b.normalize()
+            self.dcm_i2b = self.quaternion_i2b.quat2dcm()
+
+            self.log_r = numpy.hstack((self.log_r,r_i))
+            self.log_quat.append(self.quaternion_b2i.quat)
+            self.i += 1
+
+
     def log(self):
         self.log_r = numpy.hstack((self.log_r,self.r_i))
         self.log_vel_b = numpy.hstack((self.log_vel_b,self.vel_b))
@@ -422,31 +557,48 @@ class Rocket():
 
 class Rocket_Graphic():
     def __init__(self):
-        self.step = 50
+        self.step = 500
 
 
     def matplotlib_3d(self,rocket):
+        def axis_equal(X,Y,Z):
+            max_range = numpy.array([numpy.array(X).max()-numpy.array(X).min(), numpy.array(Y).max()-numpy.array(Y).min(), numpy.array(Z).max()-numpy.array(Z).min()]).max()
+            print(max_range)
+            Xb = 0.5*max_range*numpy.mgrid[-1:2:2,-1:2:2,-1:2:2][0].flatten() + 0.5*(numpy.array(X).max()+numpy.array(X).min())
+            Yb = 0.5*max_range*numpy.mgrid[-1:2:2,-1:2:2,-1:2:2][1].flatten() + 0.5*(numpy.array(Y).max()+numpy.array(Y).min())
+            Zb = 0.5*max_range*numpy.mgrid[-1:2:2,-1:2:2,-1:2:2][2].flatten() + 0.5*(numpy.array(Z).max()+numpy.array(Z).min())
+            # Comment or uncomment following both lines to test the fake bounding box:
+            return [Xb,Yb,Zb]
+
+
         fig = plt.figure()
         ax = fig.gca(projection='3d')
-        ax.set_aspect("box")
-
         plt.hold(True)
 
 
-        bodyline_vector = numpy.array([[1.0],[0.0],[0.0]],dtype = "float_")
+
+
+        bodyline_vector = numpy.array([[1000.0],[0.0],[0.0]],dtype = "float_")
         quat_bodyline = Quaternion()
         for i_fig in range(0,rocket.i-1,self.step):
             fig_list = [[rocket.log_r[0,i_fig]],[rocket.log_r[1,i_fig]],[-rocket.log_r[2,i_fig]]]
+            print(fig_list)
             ax.scatter3D(fig_list[0],fig_list[1],fig_list[2])
-
+            ax.set_aspect('equal')
             quat_bodyline.__init__(rocket.log_quat[i_fig][:])
             dcm_bodyline = numpy.array(quat_bodyline.quat2dcm())
             bodyline = numpy.dot(dcm_bodyline,bodyline_vector)
+            print(numpy.sqrt(bodyline[0] ** 2 + bodyline[1] ** 2 + bodyline[2] ** 2))
             r_vec = numpy.array([[rocket.log_r[0][i_fig]],[rocket.log_r[1][i_fig]],[rocket.log_r[2][i_fig]]])
             bodyline_rear = (- bodyline + r_vec)
             fig_list_bodyline = numpy.hstack([r_vec,bodyline_rear])
 
             ax.plot3D(fig_list_bodyline[0],fig_list_bodyline[1],-fig_list_bodyline[2])
+
+        XYZb = axis_equal(rocket.log_r[0][:],rocket.log_r[1][:],rocket.log_r[2][:])
+        print(XYZb)
+        for xb, yb, zb in zip(XYZb[0], XYZb[1], XYZb[2]):
+            ax.plot([xb], [yb], [zb],"w")
 
         plt.show()
 
@@ -455,48 +607,24 @@ def main():
 
     rocket = Rocket()
     rocket_graphic = Rocket_Graphic()
-    while -rocket.r_i[2][0] >= -5.0:
-        rocket.calcaoa_velocityaxis()
-        rocket.calc_CL()
-        rocket.calc_Cd()
-        rocket.calcdcm_b2i_i2b()
-        rocket.rocket_force_morment()
-        rocket.integrate()
-        rocket.redifinitions()
-        rocket.log()
-        rocket.quaternion_b2i.normalize()
-        rocket.quaternion_i2b.normalize()
-        if 1.0 != round(numpy.sqrt(rocket.quaternion_b2i.quat[0][0] ** 2 + rocket.quaternion_b2i.quat[1][0] ** 2 + rocket.quaternion_b2i.quat[2][0] ** 2 + rocket.quaternion_b2i.quat[3][0] ** 2),4):
-            print(rocket.i)
+    rocket.sensing_integrate()
+##    while -rocket.r_i[2][0] >= -5.0:
+##        rocket.calcaoa_velocityaxis()
+##        rocket.calc_CL()
+##        rocket.calc_Cd()
+##        rocket.calcdcm_b2i_i2b()
+##        rocket.simulate_force_moment()
+##        rocket.simulate_integrate()
+##        rocket.redifinitions()
+##        rocket.log()
+##        rocket.quaternion_b2i.normalize()
+##        rocket.quaternion_i2b.normalize()
+##        if 1.0 != round(numpy.sqrt(rocket.quaternion_b2i.quat[0][0] ** 2 + rocket.quaternion_b2i.quat[1][0] ** 2 + rocket.quaternion_b2i.quat[2][0] ** 2 + rocket.quaternion_b2i.quat[3][0] ** 2),4):
+##            print(rocket.i)
 
-    plt.plot(rocket.log_r[0][:],-rocket.log_r[2][:])
-
-    plt.hold(True)
-    plt.plot(rocket.log_r[0][:],rocket.log_r[1][:])
-    plt.axis("equal")
-    plt.show()
-    #plt.plot(rocket.log_t,rocket.log_vel_b[1][:])
-    #plt.plot(rocket.log_t,rocket.log_vel_b[0][:],"o")
-    #plt.plot(rocket.log_r[0][:],rocket.log_t)
-    #plt.plot(rocket.log_t,rocket.log_lift_i[0][:] * 1000)
-    plt.plot(rocket.log_t,rocket.log_alpha * 180/ numpy.pi)
-    plt.plot(rocket.log_t,rocket.log_beta * 180/ numpy.pi)
-    #plt.plot(rocket.log_t,rocket.log_lift_i[2][:] * 10)
-    #plt.plot(rocket.log_t,rocket.log_quat[0][:])
-    #plt.plot(rocket.log_t,rocket.log_quat[1][:])
-    #plt.plot(rocket.log_t,rocket.log_quat[2][:])
-    #plt.plot(rocket.log_t,rocket.log_quat[3][:])
-    plt.plot(rocket.log_t,rocket.log_euler[0] * 180/ numpy.pi)
-    plt.plot(rocket.log_t,rocket.log_euler[1] * 180/ numpy.pi)
-    plt.plot(rocket.log_t,rocket.log_euler[2] * 180/ numpy.pi)
-    plt.show()
-
-    fig = plt.figure()
-    ax = Axes3D(fig)
-    ax.plot(rocket.log_r[0][:],rocket.log_r[1][:],-rocket.log_r[2][:])
-    plt.axis("equal")
-    plt.show()
-
+    print(rocket.log_r[0,:])
+    matplotlib.pyplot.plot(rocket.log_r[0,:],rocket.log_r[2,:])
+    matplotlib.pyplot.show()
     rocket_graphic.matplotlib_3d(rocket)
 
 
